@@ -1,6 +1,7 @@
 mod cli;
 mod usb;
 mod utils;
+mod writer;
 
 use cli::{Cli, Commands};
 use anyhow::Result;
@@ -68,34 +69,125 @@ fn write_iso(
 ) -> Result<()> {
     use std::io::{self, Write};
 
-    // Check if ISO file exists
-    if !iso.exists() {
-        anyhow::bail!("❌ ISO file not found: {:?}", iso);
+    // 1. Check root permissions
+    println!("\n🔐 Checking permissions...");
+    utils::require_root_privileges()?;
+    println!("✓ Running with root privileges");
+
+    // 2. Validate ISO file
+    println!("\n📋 Validating ISO file...");
+    utils::validate_iso_file(iso)?;
+    
+    let iso_metadata = std::fs::metadata(iso)?;
+    let iso_size = iso_metadata.len();
+    println!("✓ ISO file valid: {} ({})", iso.display(), utils::format_size(iso_size));
+
+    // 3. Validate device
+    println!("\n💾 Validating device...");
+    utils::validate_device_path(device)?;
+    println!("✓ Device valid: {}", device.display());
+
+    // 4. Check if device is really a USB
+    let device_name = device.file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid device name"))?;
+    
+    let usb_devices = usb::list_usb_devices()?;
+    let is_usb = usb_devices.iter().any(|d| d.name == device_name);
+    
+    if !is_usb {
+        println!("\n⚠️  WARNING: {} does not appear to be a removable USB device!", device.display());
+        println!("   This might be an internal disk!");
+        
+        if !skip_confirm {
+            print!("\n❓ Are you ABSOLUTELY SURE you want to continue? (type 'YES' in capitals): ");
+            io::stdout().flush()?;
+            
+            let mut input = String::new();
+            io::stdin().read_line(&mut input)?;
+            
+            if input.trim() != "YES" {
+                println!("❌ Operation cancelled for safety.");
+                return Ok(());
+            }
+        }
     }
 
-    // Warning message
-    println!("\n⚠️  WARNING ⚠️");
-    println!("This will completely erase all data on {:?}", device);
-    
+    // 5. Check device size
+    if let Some(usb_dev) = usb_devices.iter().find(|d| d.name == device_name) {
+        if iso_size > usb_dev.size {
+            anyhow::bail!(
+                "❌ ISO file ({}) is larger than device ({})!\n   ISO: {}\n   Device: {}",
+                utils::format_size(iso_size),
+                utils::format_size(usb_dev.size),
+                iso_size,
+                usb_dev.size
+            );
+        }
+        
+        println!("\n📊 Space check:");
+        println!("   ISO size:    {}", utils::format_size(iso_size));
+        println!("   Device size: {}", utils::format_size(usb_dev.size));
+        println!("   ✓ Sufficient space available");
+        
+        // 6. Unmount if necessary
+        if usb_dev.is_mounted {
+            println!("\n🔓 Device is mounted, unmounting...");
+            utils::unmount_device(device_name)?;
+            println!("✓ Device unmounted successfully");
+        }
+    }
+
+    // 7. Final confirmation
     if !skip_confirm {
-        print!("\n❓ Are you sure you want to continue? (type 'yes' to confirm): ");
+        println!("\n{}", "=".repeat(60));
+        println!("⚠️  FINAL WARNING ⚠️");
+        println!("{}", "=".repeat(60));
+        println!();
+        println!("This will COMPLETELY ERASE all data on:");
+        println!("   Device: {}", device.display());
+        println!("   Size:   {}", utils::format_size(usb_devices.iter()
+            .find(|d| d.name == device_name)
+            .map(|d| d.size)
+            .unwrap_or(0)));
+        println!();
+        println!("And write:");
+        println!("   ISO:    {}", iso.display());
+        println!("   Size:   {}", utils::format_size(iso_size));
+        println!();
+        println!("{}", "=".repeat(60));
+        
+        print!("\n❓ Type 'yes' to confirm and start writing: ");
         io::stdout().flush()?;
         
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
         
         if input.trim().to_lowercase() != "yes" {
-            println!("❌ Operation cancelled.");
+            println!("\n❌ Operation cancelled.");
             return Ok(());
         }
     }
 
-    println!("\n🚀 Starting write process...");
-    println!("   This is a placeholder - actual implementation coming next!");
+    // 8. Start write process
+    println!("\n{}", "=".repeat(60));
+    println!("🔥 STARTING WRITE PROCESS");
+    println!("{}", "=".repeat(60));
     
-    if verify {
-        println!("\n✓ Verification will be performed after writing");
-    }
+    let start_time = std::time::Instant::now();
+    
+    writer::write_iso_to_device(iso, device, verify)?;
+    
+    let elapsed = start_time.elapsed();
+    let speed = writer::calculate_speed(iso_size, elapsed.as_secs_f64());
+    
+    println!("\n{}", "=".repeat(60));
+    println!("✅ SUCCESS!");
+    println!("{}", "=".repeat(60));
+    println!("   Total time: {:.2}s", elapsed.as_secs_f64());
+    println!("   Average speed: {}", speed);
+    println!("   Device: {}", device.display());
+    println!("{}", "=".repeat(60));
     
     Ok(())
 }
