@@ -1,1 +1,48 @@
-/target
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Logs
+*.log
+
+# Test files
+test_*.iso
+*.img
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# Documentation build
+/docs/_build/
+
+# Environment
+.env
+.env.local
+
+# Output files
+/output/
+/downloads/
+
+# OS
+Thumbs.db
