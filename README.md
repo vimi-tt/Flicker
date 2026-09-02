@@ -21,52 +21,40 @@ Flicker is a Rufus alternative for Linux that allows you to easily create bootab
 
 ## 📦 Installation
 
-### From Source
+### Official Installer
+
+The recommended way to install Flicker is using the provided installation script. It will automatically build the project, install the binary globally, and configure the desktop entry so you can launch Flicker directly from your application menu with its official icon.
 
 ```bash
 # Clone the repository
 git clone https://github.com/vimi-tt/Flicker.git
 cd Flicker
 
-# Build release version
-cargo build --release
-
-# Install to system
-sudo cp target/release/flicker /usr/local/bin/
-
-# Verify installation
-flicker --version
+# Run the installer
+./install.sh
 ```
-
-### Requirements
-
-- Rust 1.70 or higher
-- Linux kernel 3.0+
-- Root privileges (for writing to devices)
 
 ## 🚀 Quick Start
 
-### 1. List available USB devices
+### 1. Launch the Graphical Interface (GUI)
+
+Flicker Beta 2 features a beautiful Material Design 3 interface. You can launch it from your desktop environment's application menu (after running `./install.sh`), or directly from the terminal:
 
 ```bash
-flicker list
+flicker
 ```
 
-Output:
-```
-📀 Available USB devices:
+*(Note: The GUI will automatically prompt for your password using `pkexec` to elevate privileges securely. No need to run as sudo!)*
 
-  /dev/sdb - SanDisk Ultra (14.92 GB)
-  /dev/sdc - Kingston DataTraveler (29.84 GB)
-```
+### 2. Write ISO to USB (CLI Mode)
 
-### 2. Write ISO to USB
+If you prefer the command line, Flicker still supports a fully-featured CLI:
 
 ```bash
 sudo flicker write --iso ubuntu-24.04.iso --device /dev/sdb
 ```
 
-### 3. Write with verification (recommended)
+### 3. Write with verification (CLI)
 
 ```bash
 sudo flicker write --iso ubuntu-24.04.iso --device /dev/sdb --verify
@@ -176,8 +164,14 @@ flicker/
 │   ├── writer/          # ISO writing logic
 │   │   └── mod.rs
 │   └── utils.rs         # Helper functions
+├── ui/                  # Slint GUI declarations
+│   └── appwindow.slint
 ├── docs/                # Documentation
 ├── Cargo.toml           # Project configuration
+├── build.rs             # Slint build script
+├── install.sh           # Global installer script
+├── CHANGELOG.md         # Release history
+├── Flicker.png          # App icon
 └── README.md
 ```
 
@@ -208,18 +202,10 @@ cargo clippy
 
 ## 📋 Roadmap
 
-### ✅ Beta 1 (Current)
-- [x] USB device detection
-- [x] ISO writing with progress
-- [x] Data verification
-- [x] Auto-unmounting
-- [x] Safety validations
-
-### 🚧 Beta 2 (Planned)
-- [x] ISO checksum verification (SHA256, MD5)
-- [x] Multi-device support (write to multiple USBs)
-- [x] Resume interrupted writes
-- [x] GUI version (optional)
+### 🚧 Beta 3 (Planned)
+- [ ] Direct App Launch (Start Flicker by double-clicking without ever needing a terminal window)
+- [ ] Custom persistence partition creation
+- [ ] Multiboot ISO support
 
 ## 🐛 Troubleshooting
 
