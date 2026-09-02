@@ -85,6 +85,7 @@ fn require_root_or_pkexec() {
         let xauthority = std::env::var("XAUTHORITY").unwrap_or_default();
         let wayland_display = std::env::var("WAYLAND_DISPLAY").unwrap_or_default();
         let xdg_runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_default();
+        let dbus_session = std::env::var("DBUS_SESSION_BUS_ADDRESS").unwrap_or_default();
         
         let mut cmd = std::process::Command::new("pkexec");
         cmd.arg("env");
@@ -102,6 +103,9 @@ fn require_root_or_pkexec() {
         }
         if !xdg_runtime_dir.is_empty() {
             cmd.arg(format!("XDG_RUNTIME_DIR={}", xdg_runtime_dir));
+        }
+        if !dbus_session.is_empty() {
+            cmd.arg(format!("DBUS_SESSION_BUS_ADDRESS={}", dbus_session));
         }
         
         cmd.args(args);

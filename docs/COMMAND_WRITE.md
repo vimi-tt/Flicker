@@ -440,3 +440,4 @@ A: Test in a VM or restart the PC and boot from the USB.
 - [Technical Documentation](ISO_WRITING.md)
 - [Device Detection](USB_DETECTION.md)
 - [list Command](COMMAND_LIST.md)
+- [Graphical Interface (GUI)](GUI_INTERFACE.md)

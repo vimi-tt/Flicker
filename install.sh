@@ -82,6 +82,22 @@ print_info "Binary size: $BINARY_SIZE"
 print_info "Installing Flicker to /usr/local/bin..."
 sudo cp target/release/flicker /usr/local/bin/
 
+print_info "Installing Desktop entry and Icon..."
+sudo mkdir -p /usr/share/icons/hicolor/512x512/apps
+sudo cp Flicker.png /usr/share/icons/hicolor/512x512/apps/flicker.png
+sudo bash -c 'cat << EOF > /usr/share/applications/flicker.desktop
+[Desktop Entry]
+Name=Flicker
+Comment=USB Bootable Drive Creator
+Exec=/usr/local/bin/flicker
+Icon=flicker
+Terminal=false
+Type=Application
+Categories=Utility;System;
+EOF'
+sudo gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
+sudo update-desktop-database /usr/share/applications || true
+
 # Verify installation
 if command -v flicker &> /dev/null; then
     INSTALLED_VERSION=$(flicker --version 2>/dev/null || echo "unknown")

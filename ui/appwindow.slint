@@ -2,8 +2,11 @@ import { Button, CheckBox, ComboBox, ProgressIndicator, VerticalBox, LineEdit, T
 
 export component AppWindow inherits Window {
     title: "Flicker - USB Bootable Drive Creator";
+    icon: @image-url("../Flicker.png");
     preferred-width: 800px;
     preferred-height: 540px;
+    min-width: 700px;
+    min-height: 480px;
     
     in property <[string]> device_list: ["Loading devices..."];
     in-out property <string> status_text: "Ready to flash";
@@ -28,7 +31,7 @@ export component AppWindow inherits Window {
         x: 24px;
         y: 24px;
         width: 320px;
-        height: root.height - 48px;
+        height: root.height - 128px;
         spacing: 24px;
         
         Text {
@@ -70,17 +73,6 @@ export component AppWindow inherits Window {
         }
         
         Rectangle { vertical-stretch: 1; }
-        
-        Button {
-            text: root.is_flashing ? "Flashing..." : "FLASH!";
-            primary: true;
-            enabled: !root.is_flashing && root.selected_iso != "No ISO selected" && root.selected_device != "" && root.selected_device != "Loading devices...";
-            height: 56px;
-            clicked => {
-                root.has_started = true;
-                root.flash(root.opt_verify, root.opt_resume);
-            }
-        }
     }
     
     // Separator
@@ -97,7 +89,8 @@ export component AppWindow inherits Window {
         x: 377px;
         y: 24px;
         width: root.width - 377px - 24px;
-        height: root.height - 48px;
+        height: root.has_started ? root.height - 136px : root.height - 48px;
+        animate height { duration: 600ms; easing: cubic-bezier(0.2, 0, 0, 1); }
         spacing: 12px;
         
         Text { text: "Options"; font-weight: 600; }
@@ -120,20 +113,91 @@ export component AppWindow inherits Window {
             read-only: true;
             vertical-stretch: 1;
         }
+    }
+    
+    // Morphing Container (Button -> Progress)
+    Rectangle {
+        clip: true;
         
-        if (root.has_started) : VerticalBox {
-            spacing: 12px;
+        // State properties
+        property <length> idle_x: 24px;
+        property <length> idle_y: root.height - 80px;
+        property <length> idle_w: 320px;
+        property <length> idle_h: 56px;
+        
+        property <length> active_x: 377px;
+        property <length> active_y: root.height - 96px;
+        property <length> active_w: root.width - 377px - 24px;
+        property <length> active_h: 72px;
+        
+        x: root.has_started ? active_x : idle_x;
+        y: root.has_started ? active_y : idle_y;
+        width: root.has_started ? active_w : idle_w;
+        height: root.has_started ? active_h : idle_h;
+        
+        background: root.has_started ? #E8DEF8 : #6750A4; // M3 Secondary Container vs Primary
+        border-radius: root.has_started ? 16px : 28px;
+        
+        animate x, y, width, height, border-radius, background {
+            duration: 600ms;
+            easing: cubic-bezier(0.2, 0, 0, 1); // Emphasized Decelerate (Material 3 standard)
+        }
+        
+        // Idle Content (Button Text)
+        Text {
+            text: "FLASH!";
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            width: parent.width;
+            height: parent.height;
+            opacity: root.has_started ? 0.0 : (root.selected_iso != "No ISO selected" && root.selected_device != "" && root.selected_device != "Loading devices..." ? 1.0 : 0.4);
+            animate opacity { duration: 200ms; }
+        }
+        
+        // Active Content (Progress)
+        VerticalBox {
+            width: parent.width;
+            height: parent.height;
+            padding: 16px;
+            spacing: 8px;
+            opacity: root.has_started ? 1.0 : 0.0;
+            animate opacity { duration: 300ms; delay: 300ms; }
             
             Text {
                 text: root.status_text;
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: 700;
                 horizontal-alignment: center;
+                color: #1D192B; // M3 On-Secondary Container
             }
             
             ProgressIndicator {
                 progress: root.progress_value;
                 height: 12px;
+            }
+        }
+        
+        // Interaction
+        TouchArea {
+            width: parent.width;
+            height: parent.height;
+            enabled: !root.is_flashing && !root.has_started && root.selected_iso != "No ISO selected" && root.selected_device != "" && root.selected_device != "Loading devices...";
+            mouse-cursor: self.enabled ? pointer : default;
+            clicked => {
+                root.has_started = true;
+                root.flash(root.opt_verify, root.opt_resume);
+            }
+            
+            // Hover effect for the button
+            Rectangle {
+                width: parent.width;
+                height: parent.height;
+                background: white;
+                opacity: parent.has-hover && !root.has_started && parent.enabled ? 0.12 : 0.0;
+                animate opacity { duration: 150ms; }
             }
         }
     }

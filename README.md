@@ -258,7 +258,9 @@ Solutions:
 - Verify ISO checksum
 - Re-download ISO file
 
-For more help, see [docs/COMMAND_WRITE.md](docs/COMMAND_WRITE.md)
+For more help, see the detailed documentation:
+- [CLI Write Command](docs/COMMAND_WRITE.md)
+- [Graphical Interface (GUI)](docs/GUI_INTERFACE.md)
 
 ## 📄 License
 
