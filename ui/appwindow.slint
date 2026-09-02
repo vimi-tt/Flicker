@@ -1,0 +1,140 @@
+import { Button, CheckBox, ComboBox, ProgressIndicator, VerticalBox, LineEdit, TextEdit } from "std-widgets.slint";
+
+export component AppWindow inherits Window {
+    title: "Flicker - USB Bootable Drive Creator";
+    preferred-width: 800px;
+    preferred-height: 540px;
+    
+    in property <[string]> device_list: ["Loading devices..."];
+    in-out property <string> status_text: "Ready to flash";
+    in property <float> progress_value: 0.0;
+    in property <bool> is_flashing: false;
+    in-out property <string> selected_iso: "No ISO selected";
+    in-out property <string> selected_device: "";
+    
+    in property <string> terminal_logs: "";
+    
+    in-out property <bool> opt_verify: true;
+    in-out property <bool> opt_resume: false;
+    
+    in-out property <bool> has_started: false;
+    
+    callback select_iso();
+    callback flash(bool, bool);
+    callback refresh_devices();
+    
+    // Left Column
+    VerticalBox {
+        x: 24px;
+        y: 24px;
+        width: 320px;
+        height: root.height - 48px;
+        spacing: 24px;
+        
+        Text {
+            text: "Flicker";
+            font-size: 36px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+        
+        VerticalBox {
+            spacing: 8px;
+            Text { text: "1. Source Image"; font-weight: 600; }
+            LineEdit {
+                text: root.selected_iso;
+                read-only: true;
+                width: 100%;
+            }
+            Button {
+                text: "Browse...";
+                enabled: !root.is_flashing;
+                clicked => { root.select_iso(); }
+            }
+        }
+        
+        VerticalBox {
+            spacing: 8px;
+            Text { text: "2. Target Device"; font-weight: 600; }
+            ComboBox {
+                model: root.device_list;
+                enabled: !root.is_flashing;
+                current-value <=> root.selected_device;
+                width: 100%;
+            }
+            Button {
+                text: "Refresh";
+                enabled: !root.is_flashing;
+                clicked => { root.refresh_devices(); }
+            }
+        }
+        
+        Rectangle { vertical-stretch: 1; }
+        
+        Button {
+            text: root.is_flashing ? "Flashing..." : "FLASH!";
+            primary: true;
+            enabled: !root.is_flashing && root.selected_iso != "No ISO selected" && root.selected_device != "" && root.selected_device != "Loading devices...";
+            height: 56px;
+            clicked => {
+                root.has_started = true;
+                root.flash(root.opt_verify, root.opt_resume);
+            }
+        }
+    }
+    
+    // Separator
+    Rectangle {
+        x: 360px;
+        y: 24px;
+        width: 1px;
+        height: root.height - 48px;
+        background: #cccccc;
+    }
+    
+    // Right Column
+    VerticalBox {
+        x: 377px;
+        y: 24px;
+        width: root.width - 377px - 24px;
+        height: root.height - 48px;
+        spacing: 12px;
+        
+        Text { text: "Options"; font-weight: 600; }
+        CheckBox {
+            text: "Verify data after writing";
+            checked <=> root.opt_verify;
+            enabled: !root.is_flashing;
+        }
+        CheckBox {
+            text: "Resume interrupted write";
+            checked <=> root.opt_resume;
+            enabled: !root.is_flashing;
+        }
+        
+        Rectangle { height: 12px; } // Spacer
+        
+        Text { text: "Terminal Log:"; font-weight: 600; }
+        TextEdit {
+            text: root.terminal_logs;
+            read-only: true;
+            vertical-stretch: 1;
+        }
+        
+        if (root.has_started) : VerticalBox {
+            spacing: 12px;
+            
+            Text {
+                text: root.status_text;
+                font-size: 16px;
+                font-weight: 700;
+                horizontal-alignment: center;
+            }
+            
+            ProgressIndicator {
+                progress: root.progress_value;
+                height: 12px;
+            }
+        }
+    }
+}

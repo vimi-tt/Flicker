@@ -90,13 +90,14 @@ flicker list -v
 #### `write` - Write ISO to USB
 
 ```bash
-sudo flicker write --iso <ISO_FILE> --device <DEVICE> [OPTIONS]
+sudo flicker write --iso <ISO_FILE> --device <DEVICE> [DEVICE...] [OPTIONS]
 ```
 
 **Options:**
 - `--iso, -i <FILE>` - Path to ISO file (required)
-- `--device, -d <DEVICE>` - Target device path (required)
+- `--device, -d <DEVICE>...` - Target device path(s) (required, supports multiple devices)
 - `--verify, -v` - Verify data after writing
+- `--resume, -r` - Resume an interrupted write without starting over
 - `--yes, -y` - Skip confirmation prompts
 
 **Examples:**
@@ -104,6 +105,12 @@ sudo flicker write --iso <ISO_FILE> --device <DEVICE> [OPTIONS]
 ```bash
 # Basic write
 sudo flicker write --iso debian.iso --device /dev/sdb
+
+# Write to multiple devices simultaneously
+sudo flicker write --iso ubuntu.iso --device /dev/sdb /dev/sdc /dev/sdd
+
+# Resume an interrupted write
+sudo flicker write --iso ubuntu.iso --device /dev/sdb --resume
 
 # With verification (recommended for important data)
 sudo flicker write --iso ubuntu.iso --device /dev/sdb --verify
@@ -118,10 +125,13 @@ sudo flicker write -i ubuntu.iso -d /dev/sdb -v
 #### `verify` - Verify ISO checksum
 
 ```bash
-flicker verify --iso <FILE> [--checksum <HASH>]
+flicker verify --iso <FILE> [--checksum <HASH>] [--algorithm <ALGO>]
 ```
 
-*Note: Checksum verification is planned for future release*
+**Options:**
+- `--iso, -i <FILE>` - Path to ISO file (required)
+- `--checksum, -c <HASH>` - Expected checksum to verify against
+- `--algorithm, -a <ALGO>` - Checksum algorithm to use (sha256 or md5, default: sha256)
 
 ### Complete Workflow Example
 
@@ -206,10 +216,10 @@ cargo clippy
 - [x] Safety validations
 
 ### 🚧 Beta 2 (Planned)
-- [ ] ISO checksum verification (SHA256, MD5)
-- [ ] Multi-device support (write to multiple USBs)
-- [ ] Resume interrupted writes
-- [ ] GUI version (optional)
+- [x] ISO checksum verification (SHA256, MD5)
+- [x] Multi-device support (write to multiple USBs)
+- [x] Resume interrupted writes
+- [x] GUI version (optional)
 
 ## 🐛 Troubleshooting
 

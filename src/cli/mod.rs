@@ -8,7 +8,7 @@ use std::path::PathBuf;
 #[command(about = "A Rufus alternative for Linux written in Rust", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -20,15 +20,15 @@ pub enum Commands {
         verbose: bool,
     },
 
-    /// Write an ISO image to a USB device
+    /// Write an ISO image to USB devices
     Write {
         /// Path to the ISO file
         #[arg(short, long, value_name = "FILE")]
         iso: PathBuf,
 
-        /// Target device (e.g., /dev/sdb)
-        #[arg(short, long, value_name = "DEVICE")]
-        device: PathBuf,
+        /// Target devices (e.g., /dev/sdb /dev/sdc)
+        #[arg(short, long, value_name = "DEVICE", num_args = 1..)]
+        devices: Vec<PathBuf>,
 
         /// Skip confirmation prompt
         #[arg(short = 'y', long)]
@@ -37,6 +37,10 @@ pub enum Commands {
         /// Verify after writing
         #[arg(short, long)]
         verify: bool,
+
+        /// Resume interrupted write
+        #[arg(short = 'r', long)]
+        resume: bool,
     },
 
     /// Verify ISO file checksum
