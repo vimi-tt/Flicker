@@ -1,6 +1,6 @@
 [package]
 name = "flicker"
-version = "0.1.0-beta.1"
+version = "0.1.0-beta.2"
 edition = "2021"
 authors = ["Vitor Miranda"]
 description = "A modern, fast, and safe USB bootable drive creator for Linux"
@@ -23,9 +23,15 @@ sysinfo = "0.38.2"
 sha2 = "0.10"
 hex = "0.4"
 libc = "0.2.182"
+md-5 = "0.10.6"
+slint = { version = "1.5.1", default-features = false, features = ["backend-winit", "renderer-femtovg", "std", "compat-1-2", "accessibility"] }
+rfd = "0.17.2"
 
 [profile.release]
 opt-level = 3
 lto = true
 codegen-units = 1
 strip = true
+
+[build-dependencies]
+slint-build = "1.5.1"
