@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-appimage:
+    name: Build and Package AppImage
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            build-essential \
+            pkg-config \
+            libudev-dev \
+            imagemagick \
+            libfuse2 \
+            desktop-file-utils \
+            appstream
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Code formatting check
+        run: cargo fmt --check
+
+      - name: Lint with clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Run test suite
+        run: cargo test --verbose
+
+      - name: Build AppImage (x86_64)
+        run: |
+          chmod +x ./packaging/build-appimage.sh
+          ./packaging/build-appimage.sh
+
+      - name: Generate Checksums
+        run: |
+          cd target
+          sha256sum Flicker-*.AppImage > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            target/Flicker-*.AppImage
+            target/SHA256SUMS.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false

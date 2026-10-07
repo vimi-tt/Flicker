@@ -35,8 +35,11 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
-echo "🔥 Flicker Installation Script"
-echo "=============================="
+echo "🔥 Flicker 1.0.0 Installation Script"
+echo "======================================"
+echo "Tip: You can also use the standalone portable AppImage without compiling!"
+echo "     Download from: https://github.com/vimi-tt/Flicker/releases"
+echo "======================================"
 echo ""
 
 # Check if Rust is installed
@@ -64,7 +67,7 @@ if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$CURRENT_VERSION" | sort -V | head -n
 fi
 
 # Build Flicker
-print_info "Building Flicker (this may take a few minutes)..."
+print_info "Building Flicker in release mode..."
 cargo build --release
 
 if [ ! -f "target/release/flicker" ]; then
@@ -89,18 +92,19 @@ sudo bash -c 'cat << EOF > /usr/share/applications/flicker.desktop
 [Desktop Entry]
 Name=Flicker
 Comment=USB Bootable Drive Creator
-Exec=/usr/local/bin/flicker
+Exec=/usr/local/bin/flicker %F
 Icon=flicker
 Terminal=false
 Type=Application
 Categories=Utility;System;
+StartupWMClass=flicker
 EOF'
-sudo gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
-sudo update-desktop-database /usr/share/applications || true
+sudo gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
+sudo update-desktop-database /usr/share/applications 2>/dev/null || true
 
 # Verify installation
 if command -v flicker &> /dev/null; then
-    INSTALLED_VERSION=$(flicker --version 2>/dev/null || echo "unknown")
+    INSTALLED_VERSION=$(flicker --version 2>/dev/null || echo "1.0.0")
     print_success "Flicker installed successfully!"
     print_info "Version: $INSTALLED_VERSION"
 else
@@ -114,9 +118,9 @@ print_success "Installation Complete! 🎉"
 echo "=============================="
 echo ""
 echo "Quick Start:"
-echo "  $ flicker list              # List USB devices"
-echo "  $ flicker list -v           # Detailed list"
+echo "  $ flicker                   # Launch GNOME GUI"
+echo "  $ flicker list -v           # Detailed USB list"
 echo "  $ sudo flicker write --iso ubuntu.iso --device /dev/sdb"
 echo ""
-print_info "Note: Root privileges (sudo) required for writing to devices"
+print_info "Note: Root privileges required for writing to devices"
 echo ""

@@ -12,6 +12,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom persistence partition creation
 - Multiboot ISO support
 
+## [1.0.0] - 2026-10-07
+
+### Added
+- **Official AppImage Distribution**: Standalone, portable `Flicker-1.0.0-x86_64.AppImage` executable with zero system runtime dependencies.
+- **Double-Click Desktop Launch**: Launch the application directly from file managers without needing a terminal.
+- **AppStream & Desktop Integration**: Full XDG desktop entry (`flicker.desktop`), multi-resolution icons (16px to 512px), and AppStream metadata (`io.github.vimi_tt.flicker.metainfo.xml`).
+- **Complete Visual Redesign (GNOME Adwaita HIG)**:
+  - HeaderBar with compact window controls, title, USB rescan action, and light/dark theme toggle.
+  - Grouped boxed lists (`PreferencesGroup`) replacing heavy elevation cards.
+  - Slim progress indicator with real-time percentage and transfer rate.
+  - Collapsible terminal logs view.
+  - Action button styling with Adwaita suggested and destructive styles.
+- **Material You Dynamic Palette & System Theming**:
+  - Centralized design tokens in `ui/theme.slint`.
+  - Automatic system Dark/Light mode detection via `org.freedesktop.appearance` portal and `gsettings`.
+  - Automatic system accent-color detection as tonal palette seed.
+  - Guaranteed WCAG AA contrast compliance for all textual elements.
+- **Enhanced Safety**: Inline modal confirmation dialog before any destructive flashing operation.
+- **AppImage Privilege Escalation**: Resolved root elevation inside AppImage mounts using `$APPIMAGE` and `--appimage-extract-and-run`.
+- **Automated CI/CD**: GitHub Actions workflow targeting Ubuntu 22.04 LTS for broad GLIBC compatibility and automatic release tagging.
+
 ## [0.1.0-beta.2] - 2026-09-02
 
 ### Added
@@ -65,46 +86,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Release Notes
 
-### Beta 2 (0.1.0-beta.2)
+### Official 1.0.0 Release (1.0.0)
 
-The UI/UX update and Advanced Features! 🎉
-
-**Highlights:**
-- Stunning new GUI with Material Design 3 animations
-- Wrote to multiple devices at once
-- Resume interrupted writes securely
-- Integrated ISO Checksum verifier
-
-**Known Issues:**
-- Windows/MacOS support pending
-- Persistence partitions not yet implemented
-
-### Beta 1 (0.1.0-beta.1)
-
-First public beta release! 🎉
+The official 1.0 milestone release of Flicker! 🎉
 
 **Highlights:**
-- Fully functional ISO writing to USB
-- Beautiful CLI with progress bars
-- Multiple safety features
-- Comprehensive verification system
-
-**Known Issues:**
-- Checksum verification not yet implemented
-- Single device write only (no parallel writes)
-- Linux only (no Windows/MacOS support)
-
-**Testing:**
-- Tested with Ubuntu, Debian, Arch Linux ISOs
-- Tested on USB 2.0 and USB 3.0 devices
-- Verified on multiple Linux distributions
-
-**Feedback Welcome:**
-Please report any issues or suggestions on our GitHub Issues page!
+- Official portable AppImage release: run everywhere with a single double-click.
+- Stunning GNOME Adwaita redesign with Material You tonal color palettes.
+- Seamless Dark/Light system synchronization and system accent color support.
+- Fully compatible CLI and GUI modes with safe privilege escalation.
 
 ---
 
-[Unreleased]: https://github.com/yourusername/flicker/compare/v0.1.0-beta.2...HEAD
-[0.1.0-beta.2]: https://github.com/yourusername/flicker/compare/v0.1.0-beta.1...v0.1.0-beta.2
-[0.1.0-beta.1]: https://github.com/yourusername/flicker/releases/tag/v0.1.0-beta.1
-[0.0.1]: https://github.com/yourusername/flicker/releases/tag/v0.0.1
+[Unreleased]: https://github.com/vimi-tt/Flicker/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/vimi-tt/Flicker/compare/v0.1.0-beta.2...v1.0.0
+[0.1.0-beta.2]: https://github.com/vimi-tt/Flicker/compare/v0.1.0-beta.1...v0.1.0-beta.2
+[0.1.0-beta.1]: https://github.com/vimi-tt/Flicker/releases/tag/v0.1.0-beta.1
+[0.0.1]: https://github.com/vimi-tt/Flicker/releases/tag/v0.0.1

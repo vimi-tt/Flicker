@@ -2,68 +2,63 @@
 
 ## Overview
 
-Flicker Beta 2 introduces a modern, declarative Graphical User Interface built with **Slint**. The interface is designed following the **Material Design 3** guidelines, providing a premium, fluid, and robust user experience.
+Flicker 1.0 features a completely redesigned declarative Graphical User Interface built with **Slint**. The interface adheres to the modern **GNOME Human Interface Guidelines (HIG)** and **libadwaita** conventions, combined with the core dynamic tonal palette principles of **Material You**.
 
 ## Launching
 
-To launch the GUI, simply run `flicker` without any command-line arguments:
+### Direct AppImage Launch (Double-Click)
+The primary way to use Flicker GUI is double-clicking the official `Flicker-1.0.0-x86_64.AppImage` directly from your file manager (Files / Nautilus, Dolphin, Nemo, Thunar). No terminal window is required!
 
+### Command Line
+You can also launch the GUI from the terminal:
 ```bash
+# If installed globally:
 flicker
+
+# Or via AppImage:
+./Flicker-1.0.0-x86_64.AppImage
 ```
 
 ### Privilege Escalation (`pkexec`)
 
-Flicker requires root privileges to write data directly to USB block devices. If you launch the GUI as a standard user, Flicker will automatically elevate its privileges using `pkexec`. 
+Flicker requires root privileges to write raw disk data directly to removable block devices.
+When launched as a standard user:
+1. Flicker automatically requests privilege elevation using `pkexec`, bringing up your desktop environment's native Polkit authentication prompt.
+2. In AppImage environments, Flicker detects the `$APPIMAGE` variable and safely invokes `--appimage-extract-and-run`. This completely avoids the Linux limitation where root cannot access user-mounted FUSE filesystems (`/tmp/.mount_XXXX`).
+3. Essential display and session environment variables (`DISPLAY`, `XAUTHORITY`, `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS`) are propagated seamlessly.
 
-It seamlessly propagates essential environment variables (such as `DISPLAY`, `XAUTHORITY`, `XDG_RUNTIME_DIR`, and `WAYLAND_DISPLAY`) so the interface renders perfectly within your user's desktop environment while retaining `root` permissions under the hood.
+## Interface Structure
 
-## Interface Layout
+The redesign features a clean, responsive single-column layout centered with standard Adwaita spacing:
 
-The interface is structured in a two-column layout using absolute positioning to ensure stability and pixel-perfect rendering across any OS:
+### 1. Compact HeaderBar
+- **Application Title & Subtitle**: Centered title and utility description.
+- **🔄 Rescan Action**: Instantly rescans the host system for newly inserted or removed USB devices.
+- **🌓 Theme Switcher**: Allows manual toggle between Light and Dark mode, although Flicker automatically detects your desktop preference.
 
-### Left Column (Configuration)
-- **Source Image**: Displays the currently selected ISO. Click `Browse...` to open a native file dialog.
-- **Target Device**: A dropdown menu displaying all connected removable USB devices. It displays the path, model, and total size.
-- **Refresh**: Rescans the system for newly inserted or removed USB devices instantly.
+### 2. Grouped Boxed Lists (`PreferencesGroup`)
+- **Source Image**: Displays the currently selected image file. Click `Select Image…` to open the native system file dialog.
+- **Target Drive**: A curated dropdown menu displaying detected USB removable devices with their paths, vendor/model names, and human-readable capacity.
+- **Write Options**:
+  - `Verify after writing`: Byte-by-byte checksum verification against the ISO file once flashing concludes.
+  - `Resume interrupted write`: Compares blocks and skips identical chunks to accelerate recovery from aborted writes.
 
-### Right Column (Feedback & Options)
-- **Options**:
-  - `Verify data after writing`: Enables byte-by-byte checksum validation after the flash completes.
-  - `Resume interrupted write`: Skips blocks that are already identical, saving time on retries.
-- **Terminal Log**: A large, read-only text area displaying real-time verbose output of the flashing process, identical to the CLI output. This eliminates the need for hidden terminal windows.
+### 3. Activity & Progress View
+- **Status Banner**: Displays clear visual feedback (`info`, `warning`, `success`, `error`) indicating current state.
+- **Slim Progress Bar**: High-precision thin Adwaita-style progress indicator with percentage and active status.
+- **Collapsible Terminal Logs**: A toggleable detailed log console for inspecting real-time write rates, unmounting notifications, and sync operations.
 
-## The "Morphing Container" Animation
+### 4. Safety Confirmation Dialog
+Before any destructive operation begins, Flicker displays a modal confirmation card (`AdwMessageDialog` style) explicitly naming the device to be wiped and asking for final confirmation.
 
-Flicker implements a highly customized Material Design 3 **Container Transform** animation for its primary action.
+## Dynamic Theming & System Integration
 
-1. **Idle State**: The action begins as a standard "FLASH!" button located at the bottom of the Left Column.
-2. **Active State (Flashing)**: Upon clicking, the button's text evaporates, and the component fluidly morphs—sliding across the screen to the Right Column. It expands its dimensions, morphs its border-radius from a pill shape to a standard container, and shifts its color to a Material 3 Secondary Container palette (`#E8DEF8`).
-3. **Progress Tracking**: Once the transformation completes, a dynamic `ProgressIndicator` and a status text element fade in to provide real-time updates.
-
-This complex physical animation is driven by a `cubic-bezier(0.2, 0, 0, 1)` curve (the official *Emphasized Decelerate* standard) to ensure a buttery smooth, professional interaction.
-
-## Architecture & Synchronization
-
-The GUI is fully decoupled from the core synchronous flashing logic, guaranteeing that the UI thread never hangs or freezes during heavy I/O operations.
-
-- **Asynchronous Channels**: Flicker utilizes Rust's standard `std::sync::mpsc::channel` to bridge the backend operations and the Slint event loop.
-- **Message Protocol**: The background writing thread emits `ProgressMsg` variants (`Log`, `Progress`, `Status`).
-- **Event Loop Injection**: The receiver thread consumes these messages and injects them into the UI thread using `slint::invoke_from_event_loop`, ensuring thread-safe updates to the declarative properties.
-
-## Troubleshooting
-
-### "GUI fails to open / Cannot connect to Display"
-```
-qt.qpa.xcb: could not connect to display
-```
-**Solution**: This happens if your X11 or Wayland environment variables aren't propagated to the root user. Flicker handles this automatically via `pkexec`, but if your system configuration prevents it, you can run the GUI directly from a root terminal preserving the environment:
-```bash
-sudo -E flicker
-```
+- **Automatic Color-Scheme Detection**: Connects to `org.freedesktop.portal.Settings` (and fallback `gsettings`) to match your system's Dark or Light appearance.
+- **System Accent Color**: Detects your desktop's configured accent color and uses it as the seed for dynamic action highlights and focus rings.
+- **Accessibility & Contrast**: Built to exceed WCAG AA contrast standards across both Light and Dark themes.
 
 ## References
 
-- [Write Command (CLI)](COMMAND_WRITE.md)
+- [CLI Write Command](COMMAND_WRITE.md)
 - [Technical Documentation](ISO_WRITING.md)
 - [Device Detection](USB_DETECTION.md)

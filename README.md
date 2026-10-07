@@ -3,52 +3,88 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
 [![Platform](https://img.shields.io/badge/platform-Linux-blue.svg)](https://www.linux.org/)
+[![Release](https://img.shields.io/badge/release-v1.0.0-blue.svg)](https://github.com/vimi-tt/Flicker/releases)
 
 > A modern, fast, and safe USB bootable drive creator for Linux, written in Rust 🦀
 
 Flicker is a Rufus alternative for Linux that allows you to easily create bootable USB drives from ISO images. Built with Rust for maximum safety, performance, and reliability.
 
+---
+
 ## ✨ Features
 
-- 🔍 **Smart USB Detection** - Automatically detects and lists USB devices
-- 🚀 **Fast Writing** - Optimized 4MB chunk writes for maximum performance
-- 🛡️ **Safety First** - Multiple validations and confirmations to prevent data loss
-- 📊 **Real-time Progress** - Beautiful progress bars with ETA and speed
+- 🔍 **Smart USB Detection** - Automatically detects and lists removable USB drives safely
+- 🚀 **High-Performance Writing** - Optimized 4MB chunk buffered writes with minimal CPU usage
+- 🛡️ **Safety First** - Device validation, size checks, auto-unmount, and modal confirmation dialogs
+- 🎨 **GNOME Adwaita Design** - Clean HIG interface with boxed lists, compact header bar, and Material You dynamic color palette
+- 🌓 **Adaptive System Theming** - Automatic Light/Dark mode and accent color detection via desktop portal
+- 📦 **Official AppImage** - Standalone, single-file executable that opens directly with a double-click
+- 📊 **Real-time Metrics** - Slim progress bar with percentage, transfer speed, and ETA
 - ✅ **Data Verification** - Optional byte-by-byte verification after writing
-- 🔓 **Auto Unmount** - Automatically unmounts devices before writing
-- 💻 **CLI Interface** - Simple and intuitive command-line interface
-- ⚡ **Zero Dependencies** - Single binary, no external tools required
+- 💻 **Complete CLI Mode** - Full command-line interface (`list`, `write`, `verify`) for headless systems and scripts
+- ⚡ **Zero External Dependencies** - Self-contained binary without heavy GTK or Electron runtimes
 
-## 📦 Installation
+---
 
-### Official Installer
+## 📦 Installation & Usage
 
-The recommended way to install Flicker is using the provided installation script. It will automatically build the project, install the binary globally, and configure the desktop entry so you can launch Flicker directly from your application menu with its official icon.
+### Option 1: Official AppImage (Recommended)
+
+Download the pre-built, portable AppImage directly from GitHub Releases. No installation or compiler required:
+
+1. Download `Flicker-1.0.0-x86_64.AppImage` from the [Releases page](https://github.com/vimi-tt/Flicker/releases).
+2. Make it executable:
+   ```bash
+   chmod +x Flicker-1.0.0-x86_64.AppImage
+   ```
+3. **Double-click** the file in your desktop file manager to open it immediately, or launch it from the terminal:
+   ```bash
+   ./Flicker-1.0.0-x86_64.AppImage
+   ```
+
+You can also use all CLI commands directly through the AppImage:
+```bash
+./Flicker-1.0.0-x86_64.AppImage list -v
+sudo ./Flicker-1.0.0-x86_64.AppImage write --iso ubuntu.iso --device /dev/sdb --verify
+```
+
+### Option 2: System Installation via `install.sh`
+
+If you prefer building from source and installing globally to `/usr/local/bin` with desktop integration:
 
 ```bash
-# Clone the repository
 git clone https://github.com/vimi-tt/Flicker.git
 cd Flicker
-
-# Run the installer
 ./install.sh
 ```
+
+---
+
+## 🔐 Privilege Elevation (`pkexec` and `sudo`)
+
+Writing raw disk images to block devices (`/dev/sdX`) requires root privileges in Linux.
+
+- **Graphical Interface (GUI):**
+  When launched without root, Flicker automatically elevates privileges via `pkexec`, prompting you with a native Polkit authentication dialog.
+  Inside AppImage environments, Flicker detects the `$APPIMAGE` runtime variable and re-executes using `--appimage-extract-and-run`, completely bypassing user-space FUSE mount restrictions.
+- **Command-Line Interface (CLI):**
+  In CLI mode, execute destructive operations with `sudo`:
+  ```bash
+  sudo flicker write --iso image.iso --device /dev/sdb
+  ```
+
+---
 
 ## 🚀 Quick Start
 
 ### 1. Launch the Graphical Interface (GUI)
 
-Flicker Beta 2 features a beautiful Material Design 3 interface. You can launch it from your desktop environment's application menu (after running `./install.sh`), or directly from the terminal:
-
+Simply launch Flicker with double-click or run:
 ```bash
 flicker
 ```
 
-*(Note: The GUI will automatically prompt for your password using `pkexec` to elevate privileges securely. No need to run as sudo!)*
-
 ### 2. Write ISO to USB (CLI Mode)
-
-If you prefer the command line, Flicker still supports a fully-featured CLI:
 
 ```bash
 sudo flicker write --iso ubuntu-24.04.iso --device /dev/sdb
@@ -60,22 +96,21 @@ sudo flicker write --iso ubuntu-24.04.iso --device /dev/sdb
 sudo flicker write --iso ubuntu-24.04.iso --device /dev/sdb --verify
 ```
 
-## 📖 Usage
+---
 
-### Commands
+## 📖 CLI Commands
 
-#### `list` - List USB devices
+### `list` - List Removable USB Devices
 
 ```bash
 # Simple list
 flicker list
 
-# Detailed information
-flicker list --verbose
+# Detailed information (model, size, serial, mount points)
 flicker list -v
 ```
 
-#### `write` - Write ISO to USB
+### `write` - Write ISO to USB
 
 ```bash
 sudo flicker write --iso <ISO_FILE> --device <DEVICE> [DEVICE...] [OPTIONS]
@@ -89,28 +124,18 @@ sudo flicker write --iso <ISO_FILE> --device <DEVICE> [DEVICE...] [OPTIONS]
 - `--yes, -y` - Skip confirmation prompts
 
 **Examples:**
-
 ```bash
 # Basic write
 sudo flicker write --iso debian.iso --device /dev/sdb
 
 # Write to multiple devices simultaneously
-sudo flicker write --iso ubuntu.iso --device /dev/sdb /dev/sdc /dev/sdd
+sudo flicker write --iso ubuntu.iso --device /dev/sdb /dev/sdc
 
-# Resume an interrupted write
+# Resume interrupted write
 sudo flicker write --iso ubuntu.iso --device /dev/sdb --resume
-
-# With verification (recommended for important data)
-sudo flicker write --iso ubuntu.iso --device /dev/sdb --verify
-
-# Skip confirmation (use with caution!)
-sudo flicker write --iso arch.iso --device /dev/sdb --yes
-
-# Short flags
-sudo flicker write -i ubuntu.iso -d /dev/sdb -v
 ```
 
-#### `verify` - Verify ISO checksum
+### `verify` - Verify ISO Checksum
 
 ```bash
 flicker verify --iso <FILE> [--checksum <HASH>] [--algorithm <ALGO>]
@@ -119,145 +144,58 @@ flicker verify --iso <FILE> [--checksum <HASH>] [--algorithm <ALGO>]
 **Options:**
 - `--iso, -i <FILE>` - Path to ISO file (required)
 - `--checksum, -c <HASH>` - Expected checksum to verify against
-- `--algorithm, -a <ALGO>` - Checksum algorithm to use (sha256 or md5, default: sha256)
+- `--algorithm, -a <ALGO>` - Algorithm (`sha256` or `md5`, default: `sha256`)
 
-### Complete Workflow Example
+---
 
-```bash
-# Step 1: List devices to identify your USB
-flicker list -v
+## 🛠️ Building & Packaging
 
-# Step 2: Write ISO with verification
-sudo flicker write \
-    --iso ~/Downloads/ubuntu-24.04-desktop-amd64.iso \
-    --device /dev/sdb \
-    --verify
-
-# Step 3: Done! Safely remove your USB
-```
-
-## 🔒 Safety Features
-
-Flicker includes multiple safety checks to prevent accidental data loss:
-
-1. **Root Permission Check** - Ensures proper privileges
-2. **ISO Validation** - Verifies file exists and is valid
-3. **Device Validation** - Confirms device exists and is a block device
-4. **USB Detection** - Warns if target is not a removable device
-5. **Size Check** - Ensures ISO fits on device
-6. **Mount Check** - Auto-unmounts mounted partitions
-7. **Confirmation Prompts** - Multiple confirmations before writing
-8. **Verification** - Optional byte-by-byte verification
-
-## 🛠️ Development
-
-### Project Structure
-
-```
-flicker/
-├── src/
-│   ├── main.rs          # Entry point
-│   ├── cli/             # CLI argument parsing
-│   │   └── mod.rs
-│   ├── usb/             # USB device detection
-│   │   └── mod.rs
-│   ├── writer/          # ISO writing logic
-│   │   └── mod.rs
-│   └── utils.rs         # Helper functions
-├── ui/                  # Slint GUI declarations
-│   └── appwindow.slint
-├── docs/                # Documentation
-├── Cargo.toml           # Project configuration
-├── build.rs             # Slint build script
-├── install.sh           # Global installer script
-├── CHANGELOG.md         # Release history
-├── Flicker.png          # App icon
-└── README.md
-```
-
-### Building from Source
+### Building Locally
 
 ```bash
-# Development build (faster compilation)
-cargo build
+# Install dependencies (Ubuntu/Debian)
+sudo apt install build-essential pkg-config libudev-dev
 
-# Release build (optimized)
+# Compile in release mode
 cargo build --release
 
 # Run tests
 cargo test
 
-# Run with logging
-RUST_LOG=debug cargo run -- list -v
-
-# Check code without building
-cargo check
-
-# Format code
-cargo fmt
-
 # Run linter
-cargo clippy
+cargo clippy -- -D warnings
 ```
+
+### Building the AppImage Locally
+
+Run the packaging script to generate a standalone AppImage:
+
+```bash
+# Build on host
+./packaging/build-appimage.sh
+
+# Or build inside an Ubuntu 22.04 container for maximum GLIBC backward compatibility:
+./packaging/build-appimage.sh --container
+```
+
+The resulting AppImage will be available at `target/Flicker-1.0.0-x86_64.AppImage`.
+
+---
 
 ## 📋 Roadmap
 
-### 🚧 Beta 3 (Planned)
-- [ ] Direct App Launch (Start Flicker by double-clicking without ever needing a terminal window)
+- [x] **Direct App Launch** - Start Flicker with a double-click without needing a terminal (AppImage)
+- [x] **GNOME Adwaita & Material You UI** - Modern native Linux HIG aesthetics
+- [x] **Safe Root Escalation** - Seamless `pkexec` within AppImage
 - [ ] Custom persistence partition creation
 - [ ] Multiboot ISO support
+- [ ] Windows & macOS experimental support
 
-## 🐛 Troubleshooting
-
-### "Permission denied"
-```bash
-# Always use sudo for writing
-sudo flicker write --iso file.iso --device /dev/sdb
-```
-
-### "Device not found"
-```bash
-# List devices to find correct path
-flicker list -v
-
-# Check with system tools
-lsblk
-```
-
-### "ISO file not found"
-```bash
-# Use absolute path
-sudo flicker write --iso /home/user/Downloads/ubuntu.iso --device /dev/sdb
-
-# Or relative with ~
-sudo flicker write --iso ~/Downloads/ubuntu.iso --device /dev/sdb
-```
-
-### "Verification failed"
-Possible causes:
-- Faulty USB device
-- USB disconnected during write
-- Bad ISO file
-
-Solutions:
-- Try another USB device
-- Verify ISO checksum
-- Re-download ISO file
-
-For more help, see the detailed documentation:
-- [CLI Write Command](docs/COMMAND_WRITE.md)
-- [Graphical Interface (GUI)](docs/GUI_INTERFACE.md)
+---
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Inspired by [Rufus](https://rufus.ie/) (Windows)
-- Built with [Rust](https://www.rust-lang.org/) 🦀
-- Uses [clap](https://github.com/clap-rs/clap) for CLI parsing
-- Uses [indicatif](https://github.com/console-rs/indicatif) for progress bars
 
 ---
 

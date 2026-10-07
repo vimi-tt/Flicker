@@ -3,9 +3,12 @@ use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "flicker")]
-#[command(author = "Your Name")]
-#[command(version = "0.1.0")]
-#[command(about = "A Rufus alternative for Linux written in Rust", long_about = None)]
+#[command(author = "Vitor Miranda")]
+#[command(version)]
+#[command(
+    about = "A modern, fast, and safe USB bootable drive creator for Linux",
+    long_about = None
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
