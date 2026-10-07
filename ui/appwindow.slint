@@ -1,4 +1,7 @@
 import { Button, CheckBox, ComboBox, ProgressIndicator, VerticalBox, LineEdit, TextEdit } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+
+export { Theme }
 
 export component AppWindow inherits Window {
     title: "Flicker - USB Bootable Drive Creator";
@@ -7,6 +10,8 @@ export component AppWindow inherits Window {
     preferred-height: 540px;
     min-width: 700px;
     min-height: 480px;
+    background: Theme.window_bg;
+    default-font-family: Theme.font_family;
     
     in property <[string]> device_list: ["Loading devices..."];
     in-out property <string> status_text: "Ready to flash";
@@ -81,7 +86,7 @@ export component AppWindow inherits Window {
         y: 24px;
         width: 1px;
         height: root.height - 48px;
-        background: #cccccc;
+        background: Theme.row_separator;
     }
     
     // Right Column
@@ -135,18 +140,18 @@ export component AppWindow inherits Window {
         width: root.has_started ? active_w : idle_w;
         height: root.has_started ? active_h : idle_h;
         
-        background: root.has_started ? #E8DEF8 : #6750A4; // M3 Secondary Container vs Primary
-        border-radius: root.has_started ? 16px : 28px;
+        background: root.has_started ? Theme.card_bg : Theme.suggested_bg;
+        border-radius: root.has_started ? Theme.radius_card : Theme.radius_pill;
         
         animate x, y, width, height, border-radius, background {
             duration: 600ms;
-            easing: cubic-bezier(0.2, 0, 0, 1); // Emphasized Decelerate (Material 3 standard)
+            easing: cubic-bezier(0.2, 0, 0, 1);
         }
         
         // Idle Content (Button Text)
         Text {
             text: "FLASH!";
-            color: white;
+            color: Theme.suggested_text;
             font-size: 16px;
             font-weight: 700;
             horizontal-alignment: center;
@@ -171,7 +176,7 @@ export component AppWindow inherits Window {
                 font-size: 14px;
                 font-weight: 700;
                 horizontal-alignment: center;
-                color: #1D192B; // M3 On-Secondary Container
+                color: Theme.text_primary;
             }
             
             ProgressIndicator {

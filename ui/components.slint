@@ -1,0 +1,266 @@
+import { Theme } from "theme.slint";
+
+// ==============================================================================
+// HeaderBar (GNOME Adwaita Compact Header Bar)
+// ==============================================================================
+export component HeaderBar inherits Rectangle {
+    in property <string> title: "Flicker";
+    in property <string> subtitle: "";
+    
+    height: 48px;
+    background: Theme.headerbar_bg;
+    
+    // Bottom border separator
+    Rectangle {
+        y: parent.height - 1px;
+        width: 100%;
+        height: 1px;
+        background: Theme.headerbar_border;
+    }
+
+    HorizontalLayout {
+        padding-left: Theme.spacing_md;
+        padding-right: Theme.spacing_md;
+        alignment: space-between;
+
+        // Left slot for actions
+        HorizontalLayout {
+            alignment: start;
+            spacing: Theme.spacing_sm;
+            @children
+        }
+
+        // Centered Window Title
+        VerticalLayout {
+            alignment: center;
+            spacing: 1px;
+
+            Text {
+                text: root.title;
+                font-family: Theme.font_family;
+                font-size: Theme.font_size_title;
+                font-weight: 700;
+                color: Theme.text_primary;
+                horizontal-alignment: center;
+            }
+
+            if (root.subtitle != ""): Text {
+                text: root.subtitle;
+                font-family: Theme.font_family;
+                font-size: Theme.font_size_caption;
+                color: Theme.text_muted;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Right spacer or balance
+        Rectangle {
+            width: 80px;
+        }
+    }
+}
+
+// ==============================================================================
+// AdwButton (GNOME Adwaita Action Button)
+// Variants: "normal" | "suggested" | "destructive" | "flat"
+// ==============================================================================
+export component AdwButton inherits Rectangle {
+    in property <string> text: "";
+    in property <string> variant: "normal"; // normal, suggested, destructive, flat
+    in property <bool> enabled: true;
+    in property <length> min_btn_width: 80px;
+    
+    callback clicked();
+
+    min-width: root.min_btn_width;
+    height: 34px;
+    border-radius: Theme.radius_button;
+    clip: true;
+
+    // Background color based on variant and state
+    background: !root.enabled ? (root.variant == "flat" ? #00000000 : Theme.control_bg.darker(10%)) :
+        touch.pressed ? (
+            root.variant == "suggested" ? Theme.suggested_active :
+            root.variant == "destructive" ? Theme.destructive_active :
+            root.variant == "flat" ? Theme.control_active :
+            Theme.control_active
+        ) :
+        touch.has-hover ? (
+            root.variant == "suggested" ? Theme.suggested_hover :
+            root.variant == "destructive" ? Theme.destructive_hover :
+            root.variant == "flat" ? Theme.row_hover :
+            Theme.control_hover
+        ) : (
+            root.variant == "suggested" ? Theme.suggested_bg :
+            root.variant == "destructive" ? Theme.destructive_bg :
+            root.variant == "flat" ? #00000000 :
+            Theme.control_bg
+        );
+
+    // Border
+    border-width: (root.variant == "flat") ? 0px : 1px;
+    border-color: !root.enabled ? #00000000 :
+        (root.variant == "suggested" || root.variant == "destructive") ? #00000020 :
+        Theme.control_border;
+
+    animate background { duration: 120ms; }
+
+    HorizontalLayout {
+        padding-left: Theme.spacing_md;
+        padding-right: Theme.spacing_md;
+        alignment: center;
+        
+        Text {
+            text: root.text;
+            font-family: Theme.font_family;
+            font-size: Theme.font_size_body;
+            font-weight: (root.variant == "suggested" || root.variant == "destructive") ? 600 : 500;
+            color: !root.enabled ? Theme.text_muted :
+                (root.variant == "suggested") ? Theme.suggested_text :
+                (root.variant == "destructive") ? Theme.destructive_text :
+                Theme.text_primary;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: self.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+}
+
+// ==============================================================================
+// PreferencesGroup (GNOME Adwaita Boxed List Container)
+// ==============================================================================
+export component PreferencesGroup inherits VerticalLayout {
+    in property <string> title: "";
+    in property <string> description: "";
+    
+    spacing: Theme.spacing_xs;
+
+    if (root.title != ""): Text {
+        text: root.title;
+        font-family: Theme.font_family;
+        font-size: Theme.font_size_caption;
+        font-weight: 700;
+        color: Theme.text_secondary;
+        letter-spacing: 0.5px;
+    }
+
+    if (root.description != ""): Text {
+        text: root.description;
+        font-family: Theme.font_family;
+        font-size: Theme.font_size_caption;
+        color: Theme.text_muted;
+    }
+
+    // Boxed card
+    Rectangle {
+        background: Theme.card_bg;
+        border-color: Theme.card_border;
+        border-width: 1px;
+        border-radius: Theme.radius_card;
+        clip: true;
+
+        VerticalLayout {
+            padding: Theme.spacing_sm;
+            spacing: Theme.spacing_sm;
+            @children
+        }
+    }
+}
+
+// ==============================================================================
+// StatusBanner (GNOME Adwaita Alert Banner)
+// Types: "info" | "warning" | "success" | "error"
+// ==============================================================================
+export component StatusBanner inherits Rectangle {
+    in property <string> banner_type: "info";
+    in property <string> title: "";
+    in property <string> message: "";
+    in property <bool> banner_visible: true;
+
+    visible: root.banner_visible;
+    height: root.banner_visible ? 44px : 0px;
+    border-radius: Theme.radius_button;
+    border-width: 1px;
+    clip: true;
+
+    background: root.banner_type == "error" ? Theme.error_bg :
+        root.banner_type == "warning" ? Theme.warning_bg :
+        root.banner_type == "success" ? Theme.success_bg :
+        Theme.info_bg;
+
+    border-color: root.banner_type == "error" ? Theme.error_border :
+        root.banner_type == "warning" ? Theme.warning_border :
+        root.banner_type == "success" ? Theme.success_border :
+        Theme.info_border;
+
+    HorizontalLayout {
+        padding-left: Theme.spacing_md;
+        padding-right: Theme.spacing_md;
+        spacing: Theme.spacing_sm;
+        alignment: start;
+
+        // Icon indicator
+        Text {
+            text: root.banner_type == "error" ? "❌" :
+                root.banner_type == "warning" ? "⚠️" :
+                root.banner_type == "success" ? "✅" : "ℹ️";
+            font-size: 14px;
+            vertical-alignment: center;
+        }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+
+            if (root.title != ""): Text {
+                text: root.title;
+                font-family: Theme.font_family;
+                font-size: Theme.font_size_body;
+                font-weight: 600;
+                color: root.banner_type == "error" ? Theme.error_text :
+                    root.banner_type == "warning" ? Theme.warning_text :
+                    root.banner_type == "success" ? Theme.success_text :
+                    Theme.info_text;
+            }
+
+            Text {
+                text: root.message;
+                font-family: Theme.font_family;
+                font-size: Theme.font_size_caption;
+                color: root.banner_type == "error" ? Theme.error_text :
+                    root.banner_type == "warning" ? Theme.warning_text :
+                    root.banner_type == "success" ? Theme.success_text :
+                    Theme.info_text;
+                overflow: elide;
+            }
+        }
+    }
+}
+
+// ==============================================================================
+// SlimProgressBar (GNOME Adwaita Thin Progress Bar)
+// ==============================================================================
+export component SlimProgressBar inherits Rectangle {
+    in property <float> progress: 0.0;
+    
+    height: 8px;
+    background: Theme.progress_track;
+    border-radius: 4px;
+    clip: true;
+
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width * Math.max(0.0, Math.min(1.0, root.progress));
+        height: parent.height;
+        background: Theme.progress_fill;
+        border-radius: 4px;
+
+        animate width { duration: 150ms; easing: ease-out; }
+    }
+}

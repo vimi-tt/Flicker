@@ -1,4 +1,5 @@
 mod cli;
+mod theme;
 mod usb;
 mod utils;
 mod writer;
@@ -138,6 +139,12 @@ fn run_gui() -> Result<()> {
 
     let app = AppWindow::new()?;
     let app_weak = app.as_weak();
+
+    // Initialize design tokens from system appearance
+    let sys_theme = theme::detect_system_theme();
+    app.global::<Theme>().set_is_dark(sys_theme.is_dark);
+    app.global::<Theme>()
+        .set_accent_seed(sys_theme.accent_color);
 
     update_devices(&app);
 

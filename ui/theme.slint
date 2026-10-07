@@ -1,0 +1,93 @@
+// ==============================================================================
+// Flicker Design Tokens (GNOME Adwaita HIG + Material You Dynamic Tonal Palette)
+// ==============================================================================
+
+export global Theme {
+    // Mode toggles (can be driven dynamically from system settings)
+    in-out property <bool> is_dark: true;
+    in-out property <color> accent_seed: #3584e4; // Default GNOME Blue
+
+    // Window & HeaderBar Surfaces
+    out property <color> window_bg: is_dark ? #242424 : #f6f6f6;
+    out property <color> headerbar_bg: is_dark ? #303030 : #ebebeb;
+    out property <color> headerbar_border: is_dark ? #3d3d3d : #d5d5d5;
+
+    // Boxed Lists / Cards (Adwaita PreferencesGroup)
+    out property <color> card_bg: is_dark ? #303030 : #ffffff;
+    out property <color> card_border: is_dark ? #3c3c3c : #dedede;
+    out property <color> row_separator: is_dark ? #383838 : #f0f0f0;
+    out property <color> row_hover: is_dark ? #ffffff0d : #0000000a;
+
+    // Controls & Inputs
+    out property <color> control_bg: is_dark ? #383838 : #eeeeee;
+    out property <color> control_hover: is_dark ? #424242 : #e4e4e4;
+    out property <color> control_active: is_dark ? #2c2c2c : #d6d6d6;
+    out property <color> control_border: is_dark ? #464646 : #dcdcdc;
+
+    // Accent / Suggested Action (Primary dynamic action)
+    out property <color> suggested_bg: accent_seed;
+    out property <color> suggested_hover: is_dark ? accent_seed.brighter(12%) : accent_seed.darker(8%);
+    out property <color> suggested_active: is_dark ? accent_seed.darker(15%) : accent_seed.darker(18%);
+    out property <color> suggested_text: #ffffff;
+
+    // Destructive Action (Flashing / Erasing drives)
+    out property <color> destructive_bg: #e01b24; // Adwaita Red
+    out property <color> destructive_hover: #ed333b;
+    out property <color> destructive_active: #c01c28;
+    out property <color> destructive_text: #ffffff;
+
+    // Text & Content (WCAG AA Compliance: min 4.5:1 for body, 7:1 for headings)
+    out property <color> text_primary: is_dark ? #ffffff : #242424;
+    out property <color> text_secondary: is_dark ? #c0c0c0 : #5e5e5e;
+    out property <color> text_muted: is_dark ? #9a9a9a : #777777;
+
+    // Status Banners & Toasts
+    out property <color> info_bg: is_dark ? #1a3b5c : #e1f0fa;
+    out property <color> info_border: is_dark ? #285b8e : #b8daf0;
+    out property <color> info_text: is_dark ? #9dc8f0 : #185a9d;
+
+    out property <color> warning_bg: is_dark ? #4a3800 : #fef3c7;
+    out property <color> warning_border: is_dark ? #7a5c00 : #fde68a;
+    out property <color> warning_text: is_dark ? #fde68a : #92400e;
+
+    out property <color> success_bg: is_dark ? #134223 : #dcfce7;
+    out property <color> success_border: is_dark ? #226f3b : #86efac;
+    out property <color> success_text: is_dark ? #86efac : #166534;
+
+    out property <color> error_bg: is_dark ? #4d1818 : #fee2e2;
+    out property <color> error_border: is_dark ? #7d2626 : #fca5a5;
+    out property <color> error_text: is_dark ? #fca5a5 : #991b1b;
+
+    // Console Logs
+    out property <color> log_bg: is_dark ? #1e1e1e : #f4f4f4;
+    out property <color> log_border: is_dark ? #323232 : #e0e0e0;
+    out property <color> log_text: is_dark ? #dcdcdc : #2c2c2c;
+
+    // Progress Bar (Adwaita slim style)
+    out property <color> progress_track: is_dark ? #3c3c3c : #e2e2e2;
+    out property <color> progress_fill: accent_seed;
+
+    // Focus indicator
+    out property <color> focus_color: accent_seed;
+
+    // Dimensions & Border Radii (Adwaita HIG)
+    out property <length> radius_sm: 6px;
+    out property <length> radius_button: 8px;
+    out property <length> radius_card: 12px;
+    out property <length> radius_pill: 999px;
+
+    // Spacing
+    out property <length> spacing_xs: 4px;
+    out property <length> spacing_sm: 8px;
+    out property <length> spacing_md: 12px;
+    out property <length> spacing_lg: 16px;
+    out property <length> spacing_xl: 24px;
+
+    // Typography
+    out property <string> font_family: "Cantarell, Adwaita Sans, system-ui, sans-serif";
+    out property <length> font_size_title: 15px;
+    out property <length> font_size_heading: 14px;
+    out property <length> font_size_body: 13px;
+    out property <length> font_size_caption: 11px;
+    out property <length> font_size_mono: 12px;
+}
