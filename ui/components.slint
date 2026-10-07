@@ -1,13 +1,11 @@
 import { Theme } from "theme.slint";
 
 // ==============================================================================
-// HeaderBar (GNOME Adwaita Centered Header Bar)
+// HeaderBar (GNOME Adwaita Clean Action Toolbar)
+// Clean toolbar for window actions without duplicating the system titlebar
 // ==============================================================================
 export component HeaderBar inherits Rectangle {
-    in property <string> title: "Flicker";
-    in property <string> subtitle: "USB Bootable Drive Creator";
-    
-    height: 50px;
+    height: 46px;
     background: Theme.headerbar_bg;
     
     // Bottom border separator
@@ -18,37 +16,7 @@ export component HeaderBar inherits Rectangle {
         background: Theme.headerbar_border;
     }
 
-    // Centered Title Layer (Mathematically centered across the entire window width)
-    Rectangle {
-        x: 0px;
-        y: 0px;
-        width: parent.width;
-        height: parent.height;
-
-        VerticalLayout {
-            alignment: center;
-            spacing: 1px;
-
-            Text {
-                text: root.title;
-                font-family: Theme.font_family;
-                font-size: Theme.font_size_title;
-                font-weight: 700;
-                color: Theme.text_primary;
-                horizontal-alignment: center;
-            }
-
-            if (root.subtitle != ""): Text {
-                text: root.subtitle;
-                font-family: Theme.font_family;
-                font-size: Theme.font_size_caption;
-                color: Theme.text_muted;
-                horizontal-alignment: center;
-            }
-        }
-    }
-
-    // Action items container overlay
+    // Action items container (left / right action slots)
     HorizontalLayout {
         padding-left: Theme.spacing_md;
         padding-right: Theme.spacing_md;

@@ -27,10 +27,6 @@ export component AppWindow inherits Window {
     in-out property <bool> opt_resume: false;
     in-out property <bool> has_started: false;
 
-    // UI state
-    property <bool> show_confirm_dialog: false;
-    property <bool> show_logs: false;
-
     // Backend callbacks
     callback select_iso();
     callback flash(bool, bool);
@@ -39,25 +35,22 @@ export component AppWindow inherits Window {
     VerticalLayout {
         spacing: 0px;
 
-        // 1. Compact GNOME Adwaita HeaderBar
+        // 1. Clean GNOME Top Actions Toolbar (No duplicated title)
         HeaderBar {
-            title: "Flicker";
-            subtitle: "USB Bootable Drive Creator";
-
-            // Left actions slot
+            // Left action slot
             HorizontalLayout {
                 spacing: Theme.spacing_sm;
                 alignment: start;
 
                 AdwButton {
-                    text: "🔄 Rescan";
+                    text: "🔄 Rescan Devices";
                     variant: "flat";
                     enabled: !root.is_flashing;
                     clicked => { root.refresh_devices(); }
                 }
             }
 
-            // Right actions slot
+            // Right action slot
             HorizontalLayout {
                 spacing: Theme.spacing_sm;
                 alignment: end;
@@ -157,7 +150,7 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    // Group: Activity & Progress (Displays when flashing or completed)
+                    // Group: Activity & Progress (Displays during flashing or when completed)
                     if (root.has_started): PreferencesGroup {
                         title: "PROCESS STATUS";
 
@@ -191,7 +184,7 @@ export component AppWindow inherits Window {
                                     }
 
                                     Text {
-                                        text: root.is_flashing ? "Active" : "Idle";
+                                        text: root.is_flashing ? "Writing data" : "Finished";
                                         font-family: Theme.font_family;
                                         font-size: Theme.font_size_caption;
                                         color: Theme.text_muted;
@@ -199,38 +192,22 @@ export component AppWindow inherits Window {
                                 }
                             }
 
-                            // Toggle logs button
-                            HorizontalLayout {
-                                alignment: space-between;
+                            // Always visible real-time log output
+                            VerticalLayout {
+                                spacing: Theme.spacing_xs;
 
                                 Text {
                                     text: "Terminal Log Output";
                                     font-family: Theme.font_family;
                                     font-size: Theme.font_size_body;
-                                    font-weight: 500;
+                                    font-weight: 600;
                                     color: Theme.text_primary;
-                                    vertical-alignment: center;
                                 }
-
-                                AdwButton {
-                                    text: root.show_logs ? "Hide Details" : "Show Details";
-                                    variant: "flat";
-                                    clicked => { root.show_logs = !root.show_logs; }
-                                }
-                            }
-
-                            // Expanded console log
-                            if (root.show_logs): Rectangle {
-                                height: 140px;
-                                background: Theme.log_bg;
-                                border-color: Theme.log_border;
-                                border-width: 1px;
-                                border-radius: Theme.radius_sm;
 
                                 TextEdit {
                                     text: root.terminal_logs;
                                     read-only: true;
-                                    font-size: Theme.font_size_mono;
+                                    height: 140px;
                                 }
                             }
                         }
@@ -252,7 +229,8 @@ export component AppWindow inherits Window {
                                 && root.selected_device != "Loading devices..."
                                 && root.selected_device != "No USB devices found";
                             clicked => {
-                                root.show_confirm_dialog = true;
+                                root.has_started = true;
+                                root.flash(root.opt_verify, root.opt_resume);
                             }
                         }
 
@@ -262,75 +240,6 @@ export component AppWindow inherits Window {
                             font-size: Theme.font_size_caption;
                             color: Theme.text_muted;
                             horizontal-alignment: center;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 4. Modal Safety Confirmation Dialog (GNOME AdwMessageDialog pattern)
-    if (root.show_confirm_dialog): Rectangle {
-        x: 0px;
-        y: 0px;
-        width: 100%;
-        height: 100%;
-        background: #00000088; // Backdrop overlay
-
-        // Dialog card
-        Rectangle {
-            width: 480px;
-            height: 250px;
-            background: Theme.card_bg;
-            border-color: Theme.card_border;
-            border-width: 1px;
-            border-radius: Theme.radius_card;
-            clip: true;
-
-            VerticalLayout {
-                padding: Theme.spacing_lg;
-                spacing: Theme.spacing_md;
-                alignment: space-between;
-
-                VerticalLayout {
-                    spacing: Theme.spacing_sm;
-
-                    Text {
-                        text: "⚠️ Confirm Erase and Flash";
-                        font-family: Theme.font_family;
-                        font-size: Theme.font_size_heading;
-                        font-weight: 700;
-                        color: Theme.destructive_bg;
-                    }
-
-                    Text {
-                        text: "Are you sure you want to write the selected image to:\n" + root.selected_device + "\n\nAll existing data and partitions on this drive will be permanently erased.";
-                        font-family: Theme.font_family;
-                        font-size: Theme.font_size_body;
-                        color: Theme.text_primary;
-                        wrap: word-wrap;
-                    }
-                }
-
-                HorizontalLayout {
-                    alignment: end;
-                    spacing: Theme.spacing_md;
-
-                    AdwButton {
-                        text: "Cancel";
-                        variant: "normal";
-                        clicked => {
-                            root.show_confirm_dialog = false;
-                        }
-                    }
-
-                    AdwButton {
-                        text: "Erase and Flash";
-                        variant: "destructive";
-                        clicked => {
-                            root.show_confirm_dialog = false;
-                            root.has_started = true;
-                            root.flash(root.opt_verify, root.opt_resume);
                         }
                     }
                 }

@@ -135,7 +135,14 @@ fn require_root_or_pkexec() {
 }
 
 fn run_gui() -> Result<()> {
+    // Ensure desktop entry and icon are installed in user environment
+    // so GNOME Shell displays the official name and icon instead of "Desconhecido"
+    crate::utils::ensure_desktop_integration();
+
     require_root_or_pkexec();
+
+    // Also run as root in case it can register system-wide
+    crate::utils::ensure_desktop_integration();
 
     let app = AppWindow::new()?;
     let app_weak = app.as_weak();

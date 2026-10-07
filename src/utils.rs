@@ -1,10 +1,92 @@
 use anyhow::{Context, Result};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+const FLICKER_ICON_BYTES: &[u8] = include_bytes!("../Flicker.png");
+
+const FLICKER_DESKTOP_CONTENT: &str = r#"[Desktop Entry]
+Type=Application
+Name=Flicker
+GenericName=USB Bootable Drive Creator
+Comment=Create bootable USB drives safely and easily from ISO images
+Exec=flicker %F
+Icon=flicker
+Terminal=false
+Categories=System;Utility;
+StartupWMClass=flicker
+Keywords=usb;bootable;iso;flasher;image;drive;
+MimeType=application/x-cd-image;application/x-raw-disk-image;
+"#;
 
 /// Check if running as root/sudo
 pub fn check_root_privileges() -> bool {
     // Check if effective user ID is 0 (root)
     unsafe { libc::geteuid() == 0 }
+}
+
+/// Ensure desktop entry and icon are installed in user or system paths
+/// so GNOME Shell and window managers correctly display "Flicker" and its official icon.
+pub fn ensure_desktop_integration() {
+    // 1. Try global system location if running as root
+    if check_root_privileges() {
+        let global_icons = Path::new("/usr/share/icons/hicolor/512x512/apps");
+        let global_apps = Path::new("/usr/share/applications");
+        let _ = std::fs::create_dir_all(global_icons);
+        let _ = std::fs::create_dir_all(global_apps);
+        let _ = std::fs::write(global_icons.join("flicker.png"), FLICKER_ICON_BYTES);
+        let _ = std::fs::write(global_apps.join("flicker.desktop"), FLICKER_DESKTOP_CONTENT);
+        let _ = std::process::Command::new("update-desktop-database")
+            .arg(global_apps)
+            .output();
+        let _ = std::process::Command::new("gtk-update-icon-cache")
+            .args(["-f", "-t", "/usr/share/icons/hicolor"])
+            .output();
+    }
+
+    // 2. Also ensure installation in local user directory (for the calling non-root desktop user)
+    let target_homes = get_target_homes();
+    for home in target_homes {
+        let user_icons = home.join(".local/share/icons/hicolor/512x512/apps");
+        let user_apps = home.join(".local/share/applications");
+        let _ = std::fs::create_dir_all(&user_icons);
+        let _ = std::fs::create_dir_all(&user_apps);
+        let _ = std::fs::write(user_icons.join("flicker.png"), FLICKER_ICON_BYTES);
+        let _ = std::fs::write(user_apps.join("flicker.desktop"), FLICKER_DESKTOP_CONTENT);
+        let _ = std::process::Command::new("update-desktop-database")
+            .arg(&user_apps)
+            .output();
+    }
+}
+
+fn get_target_homes() -> Vec<PathBuf> {
+    let mut homes = Vec::new();
+    if let Ok(home) = std::env::var("HOME") {
+        homes.push(PathBuf::from(home));
+    }
+    // If running under sudo, inspect real user
+    if let Ok(sudo_user) = std::env::var("SUDO_USER") {
+        let user_home = PathBuf::from(format!("/home/{}", sudo_user));
+        if user_home.exists() && !homes.contains(&user_home) {
+            homes.push(user_home);
+        }
+    }
+    // If running under pkexec, inspect PKEXEC_UID
+    if let Ok(pkexec_uid) = std::env::var("PKEXEC_UID") {
+        if let Ok(uid) = pkexec_uid.parse::<libc::uid_t>() {
+            unsafe {
+                let pw = libc::getpwuid(uid);
+                if !pw.is_null() && !(*pw).pw_dir.is_null() {
+                    let dir = std::ffi::CStr::from_ptr((*pw).pw_dir)
+                        .to_string_lossy()
+                        .into_owned();
+                    let pb = PathBuf::from(dir);
+                    if pb.exists() && !homes.contains(&pb) {
+                        homes.push(pb);
+                    }
+                }
+            }
+        }
+    }
+    homes
 }
 
 /// Ensure the user has root privileges, or return an error
