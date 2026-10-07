@@ -1,13 +1,13 @@
 import { Theme } from "theme.slint";
 
 // ==============================================================================
-// HeaderBar (GNOME Adwaita Compact Header Bar)
+// HeaderBar (GNOME Adwaita Centered Header Bar)
 // ==============================================================================
 export component HeaderBar inherits Rectangle {
     in property <string> title: "Flicker";
-    in property <string> subtitle: "";
+    in property <string> subtitle: "USB Bootable Drive Creator";
     
-    height: 48px;
+    height: 50px;
     background: Theme.headerbar_bg;
     
     // Bottom border separator
@@ -18,19 +18,13 @@ export component HeaderBar inherits Rectangle {
         background: Theme.headerbar_border;
     }
 
-    HorizontalLayout {
-        padding-left: Theme.spacing_md;
-        padding-right: Theme.spacing_md;
-        alignment: space-between;
+    // Centered Title Layer (Mathematically centered across the entire window width)
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
 
-        // Left slot for actions
-        HorizontalLayout {
-            alignment: start;
-            spacing: Theme.spacing_sm;
-            @children
-        }
-
-        // Centered Window Title
         VerticalLayout {
             alignment: center;
             spacing: 1px;
@@ -52,11 +46,14 @@ export component HeaderBar inherits Rectangle {
                 horizontal-alignment: center;
             }
         }
+    }
 
-        // Right spacer or balance
-        Rectangle {
-            width: 80px;
-        }
+    // Action items container overlay
+    HorizontalLayout {
+        padding-left: Theme.spacing_md;
+        padding-right: Theme.spacing_md;
+        alignment: space-between;
+        @children
     }
 }
 
@@ -78,7 +75,7 @@ export component AdwButton inherits Rectangle {
     clip: true;
 
     // Background color based on variant and state
-    background: !root.enabled ? (root.variant == "flat" ? #00000000 : Theme.control_bg.darker(10%)) :
+    background: !root.enabled ? (root.variant == "flat" ? #00000000 : Theme.control_bg.darker(8%)) :
         touch.pressed ? (
             root.variant == "suggested" ? Theme.suggested_active :
             root.variant == "destructive" ? Theme.destructive_active :
@@ -132,6 +129,68 @@ export component AdwButton inherits Rectangle {
 }
 
 // ==============================================================================
+// ActionRow (GNOME Adwaita Preference Row)
+// Standard pattern: [Icon] [Title & Subtitle] (Left) <---> [Control] (Right)
+// ==============================================================================
+export component ActionRow inherits Rectangle {
+    in property <string> title: "";
+    in property <string> subtitle: "";
+    in property <string> icon_text: "";
+    
+    min-height: 56px;
+
+    HorizontalLayout {
+        padding-left: Theme.spacing_lg;
+        padding-right: Theme.spacing_lg;
+        padding-top: Theme.spacing_sm;
+        padding-bottom: Theme.spacing_sm;
+        spacing: Theme.spacing_md;
+        alignment: space-between;
+
+        // Left section: Title & Subtitle
+        HorizontalLayout {
+            horizontal-stretch: 1;
+            alignment: start;
+            spacing: Theme.spacing_md;
+
+            if (root.icon_text != ""): Text {
+                text: root.icon_text;
+                font-size: 18px;
+                vertical-alignment: center;
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+
+                Text {
+                    text: root.title;
+                    font-family: Theme.font_family;
+                    font-size: Theme.font_size_body;
+                    font-weight: 600;
+                    color: Theme.text_primary;
+                    overflow: elide;
+                }
+
+                if (root.subtitle != ""): Text {
+                    text: root.subtitle;
+                    font-family: Theme.font_family;
+                    font-size: Theme.font_size_caption;
+                    color: Theme.text_secondary;
+                    overflow: elide;
+                }
+            }
+        }
+
+        // Right section: Slot for controls (Button, ComboBox, CheckBox, etc.)
+        HorizontalLayout {
+            alignment: end;
+            @children
+        }
+    }
+}
+
+// ==============================================================================
 // PreferencesGroup (GNOME Adwaita Boxed List Container)
 // ==============================================================================
 export component PreferencesGroup inherits VerticalLayout {
@@ -145,8 +204,8 @@ export component PreferencesGroup inherits VerticalLayout {
         font-family: Theme.font_family;
         font-size: Theme.font_size_caption;
         font-weight: 700;
-        color: Theme.text_secondary;
-        letter-spacing: 0.5px;
+        color: Theme.text_muted;
+        letter-spacing: 0.6px;
     }
 
     if (root.description != ""): Text {
@@ -156,7 +215,7 @@ export component PreferencesGroup inherits VerticalLayout {
         color: Theme.text_muted;
     }
 
-    // Boxed card
+    // Boxed card with 12px rounded corners
     Rectangle {
         background: Theme.card_bg;
         border-color: Theme.card_border;
@@ -165,8 +224,8 @@ export component PreferencesGroup inherits VerticalLayout {
         clip: true;
 
         VerticalLayout {
-            padding: Theme.spacing_sm;
-            spacing: Theme.spacing_sm;
+            padding: 0px; // Rows manage their own padding so dividers span edge-to-edge
+            spacing: 0px;
             @children
         }
     }
@@ -183,7 +242,7 @@ export component StatusBanner inherits Rectangle {
     in property <bool> banner_visible: true;
 
     visible: root.banner_visible;
-    height: root.banner_visible ? 44px : 0px;
+    height: root.banner_visible ? 48px : 0px;
     border-radius: Theme.radius_button;
     border-width: 1px;
     clip: true;
@@ -209,7 +268,7 @@ export component StatusBanner inherits Rectangle {
             text: root.banner_type == "error" ? "❌" :
                 root.banner_type == "warning" ? "⚠️" :
                 root.banner_type == "success" ? "✅" : "ℹ️";
-            font-size: 14px;
+            font-size: 15px;
             vertical-alignment: center;
         }
 

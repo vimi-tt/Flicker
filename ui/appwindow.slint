@@ -1,16 +1,16 @@
 import { Button, CheckBox, ComboBox, LineEdit, TextEdit, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { HeaderBar, AdwButton, PreferencesGroup, StatusBanner, SlimProgressBar } from "components.slint";
+import { HeaderBar, AdwButton, ActionRow, PreferencesGroup, StatusBanner, SlimProgressBar } from "components.slint";
 
 export { Theme }
 
 export component AppWindow inherits Window {
     title: "Flicker";
     icon: @image-url("../Flicker.png");
-    preferred-width: 820px;
-    preferred-height: 640px;
-    min-width: 680px;
-    min-height: 520px;
+    preferred-width: 760px;
+    preferred-height: 600px;
+    min-width: 600px;
+    min-height: 480px;
     background: Theme.window_bg;
     default-font-family: Theme.font_family;
 
@@ -44,144 +44,95 @@ export component AppWindow inherits Window {
             title: "Flicker";
             subtitle: "USB Bootable Drive Creator";
 
-            // Rescan devices button
-            AdwButton {
-                text: "🔄 Rescan";
-                variant: "flat";
-                enabled: !root.is_flashing;
-                clicked => { root.refresh_devices(); }
+            // Left actions slot
+            HorizontalLayout {
+                spacing: Theme.spacing_sm;
+                alignment: start;
+
+                AdwButton {
+                    text: "🔄 Rescan";
+                    variant: "flat";
+                    enabled: !root.is_flashing;
+                    clicked => { root.refresh_devices(); }
+                }
             }
 
-            // Theme toggle button
-            AdwButton {
-                text: Theme.is_dark ? "☀️ Light" : "🌙 Dark";
-                variant: "flat";
-                clicked => { Theme.is_dark = !Theme.is_dark; }
+            // Right actions slot
+            HorizontalLayout {
+                spacing: Theme.spacing_sm;
+                alignment: end;
+
+                AdwButton {
+                    text: Theme.is_dark ? "☀️ Light" : "🌙 Dark";
+                    variant: "flat";
+                    clicked => { Theme.is_dark = !Theme.is_dark; }
+                }
             }
         }
 
-        // 2. Main Content Area (Centered clamp)
+        // 2. Main Centered Content Area (Adwaita Clamp pattern)
         ScrollView {
             vertical-stretch: 1;
 
-            VerticalLayout {
+            HorizontalLayout {
+                alignment: center;
                 padding-top: Theme.spacing_lg;
                 padding-bottom: Theme.spacing_xl;
-                padding-left: Theme.spacing_xl;
-                padding-right: Theme.spacing_xl;
-                spacing: Theme.spacing_lg;
-                alignment: start;
+                padding-left: Theme.spacing_lg;
+                padding-right: Theme.spacing_lg;
 
-                // Group: Source ISO Image
-                PreferencesGroup {
-                    title: "SOURCE IMAGE";
-                    description: "Select the bootable operating system or disk image (.iso, .img)";
+                // Centered Column with clamped max-width
+                VerticalLayout {
+                    width: Math.min(640px, root.width - 48px);
+                    spacing: Theme.spacing_lg;
+                    alignment: start;
 
-                    HorizontalLayout {
-                        spacing: Theme.spacing_md;
-                        alignment: center;
+                    // Group: Source ISO Image
+                    PreferencesGroup {
+                        title: "SOURCE IMAGE";
+                        description: "Select the bootable operating system or disk image (.iso, .img)";
 
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            alignment: center;
-                            spacing: 3px;
+                        ActionRow {
+                            icon_text: "💿";
+                            title: root.selected_iso == "No ISO selected" ? "No file selected" : root.selected_iso;
+                            subtitle: root.selected_iso == "No ISO selected" ? "Choose an ISO image from your local storage" : "Ready to be written";
 
-                            Text {
-                                text: root.selected_iso == "No ISO selected" ? "No file selected" : root.selected_iso;
-                                font-family: Theme.font_family;
-                                font-size: Theme.font_size_body;
-                                font-weight: 600;
-                                color: root.selected_iso == "No ISO selected" ? Theme.text_muted : Theme.text_primary;
-                                overflow: elide;
+                            AdwButton {
+                                text: "Select Image…";
+                                variant: root.selected_iso == "No ISO selected" ? "suggested" : "normal";
+                                enabled: !root.is_flashing;
+                                clicked => { root.select_iso(); }
                             }
-
-                            Text {
-                                text: root.selected_iso == "No ISO selected" ? "Choose an ISO image from your local storage" : "Ready to be written";
-                                font-family: Theme.font_family;
-                                font-size: Theme.font_size_caption;
-                                color: Theme.text_secondary;
-                            }
-                        }
-
-                        AdwButton {
-                            text: "Select Image…";
-                            variant: root.selected_iso == "No ISO selected" ? "suggested" : "normal";
-                            enabled: !root.is_flashing;
-                            clicked => { root.select_iso(); }
                         }
                     }
-                }
 
-                // Group: Target USB Device
-                PreferencesGroup {
-                    title: "TARGET DRIVE";
-                    description: "Select the removable USB drive where the image will be written";
+                    // Group: Target USB Device
+                    PreferencesGroup {
+                        title: "TARGET DRIVE";
+                        description: "Select the removable USB drive where the image will be written";
 
-                    VerticalLayout {
-                        spacing: Theme.spacing_sm;
-
-                        HorizontalLayout {
-                            spacing: Theme.spacing_md;
-                            alignment: center;
-
-                            VerticalLayout {
-                                horizontal-stretch: 1;
-                                alignment: center;
-                                spacing: 3px;
-
-                                Text {
-                                    text: "Destination Drive";
-                                    font-family: Theme.font_family;
-                                    font-size: Theme.font_size_body;
-                                    font-weight: 600;
-                                    color: Theme.text_primary;
-                                }
-
-                                Text {
-                                    text: "All existing data on this drive will be overwritten";
-                                    font-family: Theme.font_family;
-                                    font-size: Theme.font_size_caption;
-                                    color: Theme.text_secondary;
-                                }
-                            }
+                        ActionRow {
+                            icon_text: "💾";
+                            title: "Destination Drive";
+                            subtitle: "All existing data on this drive will be overwritten";
 
                             ComboBox {
-                                width: 280px;
+                                width: 260px;
                                 model: root.device_list;
                                 enabled: !root.is_flashing;
                                 current-value <=> root.selected_device;
                             }
                         }
                     }
-                }
 
-                // Group: Flashing Options
-                PreferencesGroup {
-                    title: "OPTIONS";
-                    description: "Advanced verification and resumption preferences";
+                    // Group: Flashing Options
+                    PreferencesGroup {
+                        title: "OPTIONS";
+                        description: "Advanced verification and resumption preferences";
 
-                    VerticalLayout {
-                        spacing: Theme.spacing_sm;
-
-                        HorizontalLayout {
-                            alignment: space-between;
-
-                            VerticalLayout {
-                                spacing: 2px;
-                                Text {
-                                    text: "Verify after writing";
-                                    font-family: Theme.font_family;
-                                    font-size: Theme.font_size_body;
-                                    font-weight: 500;
-                                    color: Theme.text_primary;
-                                }
-                                Text {
-                                    text: "Performs byte-by-byte check against the source image";
-                                    font-family: Theme.font_family;
-                                    font-size: Theme.font_size_caption;
-                                    color: Theme.text_secondary;
-                                }
-                            }
+                        ActionRow {
+                            title: "Verify after writing";
+                            subtitle: "Performs byte-by-byte checksum check against the source image";
 
                             CheckBox {
                                 checked <=> root.opt_verify;
@@ -189,31 +140,15 @@ export component AppWindow inherits Window {
                             }
                         }
 
-                        // Subtle row separator
+                        // Subtle row separator spanning card width
                         Rectangle {
                             height: 1px;
                             background: Theme.row_separator;
                         }
 
-                        HorizontalLayout {
-                            alignment: space-between;
-
-                            VerticalLayout {
-                                spacing: 2px;
-                                Text {
-                                    text: "Resume interrupted write";
-                                    font-family: Theme.font_family;
-                                    font-size: Theme.font_size_body;
-                                    font-weight: 500;
-                                    color: Theme.text_primary;
-                                }
-                                Text {
-                                    text: "Skips identical blocks to speed up re-writing";
-                                    font-family: Theme.font_family;
-                                    font-size: Theme.font_size_caption;
-                                    color: Theme.text_secondary;
-                                }
-                            }
+                        ActionRow {
+                            title: "Resume interrupted write";
+                            subtitle: "Skips identical blocks to speed up re-writing";
 
                             CheckBox {
                                 checked <=> root.opt_resume;
@@ -221,112 +156,113 @@ export component AppWindow inherits Window {
                             }
                         }
                     }
-                }
 
-                // Group: Activity & Progress (Displays when flashing or completed)
-                if (root.has_started): PreferencesGroup {
-                    title: "PROCESS STATUS";
+                    // Group: Activity & Progress (Displays when flashing or completed)
+                    if (root.has_started): PreferencesGroup {
+                        title: "PROCESS STATUS";
 
-                    VerticalLayout {
-                        spacing: Theme.spacing_md;
-
-                        StatusBanner {
-                            banner_type: root.banner_type;
-                            title: root.status_text;
-                            message: root.is_flashing ? "Writing in progress… Please do not remove the USB drive." : "Operation completed.";
-                        }
-
-                        // Slim Adwaita Progress Bar
                         VerticalLayout {
-                            spacing: Theme.spacing_xs;
+                            padding: Theme.spacing_md;
+                            spacing: Theme.spacing_md;
 
-                            SlimProgressBar {
-                                progress: root.progress_value;
+                            StatusBanner {
+                                banner_type: root.banner_type;
+                                title: root.status_text;
+                                message: root.is_flashing ? "Writing in progress… Please do not remove the USB drive." : "Operation completed.";
                             }
 
+                            // Slim Adwaita Progress Bar
+                            VerticalLayout {
+                                spacing: Theme.spacing_xs;
+
+                                SlimProgressBar {
+                                    progress: root.progress_value;
+                                }
+
+                                HorizontalLayout {
+                                    alignment: space-between;
+
+                                    Text {
+                                        text: Math.round(root.progress_value * 100) + "%";
+                                        font-family: Theme.font_family;
+                                        font-size: Theme.font_size_caption;
+                                        font-weight: 600;
+                                        color: Theme.text_secondary;
+                                    }
+
+                                    Text {
+                                        text: root.is_flashing ? "Active" : "Idle";
+                                        font-family: Theme.font_family;
+                                        font-size: Theme.font_size_caption;
+                                        color: Theme.text_muted;
+                                    }
+                                }
+                            }
+
+                            // Toggle logs button
                             HorizontalLayout {
                                 alignment: space-between;
 
                                 Text {
-                                    text: Math.round(root.progress_value * 100) + "%";
+                                    text: "Terminal Log Output";
                                     font-family: Theme.font_family;
-                                    font-size: Theme.font_size_caption;
-                                    font-weight: 600;
-                                    color: Theme.text_secondary;
+                                    font-size: Theme.font_size_body;
+                                    font-weight: 500;
+                                    color: Theme.text_primary;
+                                    vertical-alignment: center;
                                 }
 
-                                Text {
-                                    text: root.is_flashing ? "Active" : "Idle";
-                                    font-family: Theme.font_family;
-                                    font-size: Theme.font_size_caption;
-                                    color: Theme.text_muted;
+                                AdwButton {
+                                    text: root.show_logs ? "Hide Details" : "Show Details";
+                                    variant: "flat";
+                                    clicked => { root.show_logs = !root.show_logs; }
                                 }
                             }
-                        }
 
-                        // Toggle logs button
-                        HorizontalLayout {
-                            alignment: space-between;
+                            // Expanded console log
+                            if (root.show_logs): Rectangle {
+                                height: 140px;
+                                background: Theme.log_bg;
+                                border-color: Theme.log_border;
+                                border-width: 1px;
+                                border-radius: Theme.radius_sm;
 
-                            Text {
-                                text: "Terminal Log Output";
-                                font-family: Theme.font_family;
-                                font-size: Theme.font_size_body;
-                                font-weight: 500;
-                                color: Theme.text_primary;
-                                vertical-alignment: center;
-                            }
-
-                            AdwButton {
-                                text: root.show_logs ? "Hide Details" : "Show Details";
-                                variant: "flat";
-                                clicked => { root.show_logs = !root.show_logs; }
-                            }
-                        }
-
-                        // Expanded console log
-                        if (root.show_logs): Rectangle {
-                            height: 140px;
-                            background: Theme.log_bg;
-                            border-color: Theme.log_border;
-                            border-width: 1px;
-                            border-radius: Theme.radius_sm;
-
-                            TextEdit {
-                                text: root.terminal_logs;
-                                read-only: true;
-                                font-size: Theme.font_size_mono;
+                                TextEdit {
+                                    text: root.terminal_logs;
+                                    read-only: true;
+                                    font-size: Theme.font_size_mono;
+                                }
                             }
                         }
                     }
-                }
 
-                // 3. Primary Destructive Flash Action
-                VerticalLayout {
-                    spacing: Theme.spacing_sm;
-                    alignment: center;
+                    // 3. Primary Destructive Flash Action
+                    VerticalLayout {
+                        spacing: Theme.spacing_sm;
+                        alignment: center;
 
-                    AdwButton {
-                        min_btn_width: 320px;
-                        height: 44px;
-                        text: root.is_flashing ? "Writing to USB…" : "Flash to Drive";
-                        variant: "destructive";
-                        enabled: !root.is_flashing
-                            && root.selected_iso != "No ISO selected"
-                            && root.selected_device != ""
-                            && root.selected_device != "Loading devices..."
-                            && root.selected_device != "No USB devices found";
-                        clicked => {
-                            root.show_confirm_dialog = true;
+                        AdwButton {
+                            min_btn_width: 280px;
+                            height: 44px;
+                            text: root.is_flashing ? "Writing to USB…" : "Flash to Drive";
+                            variant: "destructive";
+                            enabled: !root.is_flashing
+                                && root.selected_iso != "No ISO selected"
+                                && root.selected_device != ""
+                                && root.selected_device != "Loading devices..."
+                                && root.selected_device != "No USB devices found";
+                            clicked => {
+                                root.show_confirm_dialog = true;
+                            }
                         }
-                    }
 
-                    Text {
-                        text: "⚠️ Writing will erase all files and partitions on the selected USB drive.";
-                        font-family: Theme.font_family;
-                        font-size: Theme.font_size_caption;
-                        color: Theme.text_muted;
-                        horizontal-alignment: center;
+                        Text {
+                            text: "⚠️ Writing will erase all files and partitions on the selected USB drive.";
+                            font-family: Theme.font_family;
+                            font-size: Theme.font_size_caption;
+                            color: Theme.text_muted;
+                            horizontal-alignment: center;
+                        }
                     }
                 }
             }
