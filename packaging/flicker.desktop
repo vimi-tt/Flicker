@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Flicker
+GenericName=USB Bootable Drive Creator
+Comment=Create bootable USB drives safely and easily from ISO images
+Exec=flicker %F
+Icon=flicker
+Terminal=false
+Categories=System;Utility;
+StartupWMClass=flicker
+Keywords=usb;bootable;iso;flasher;image;drive;
+MimeType=application/x-cd-image;application/x-raw-disk-image;

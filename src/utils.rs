@@ -24,11 +24,10 @@ pub fn validate_device_path(device: &Path) -> Result<()> {
     if !device.exists() {
         anyhow::bail!("❌ Device does not exist: {:?}", device);
     }
-    
+
     // Check if it's a block device
-    let metadata = std::fs::metadata(device)
-        .context("Failed to get device metadata")?;
-    
+    let metadata = std::fs::metadata(device).context("Failed to get device metadata")?;
+
     #[cfg(target_os = "linux")]
     {
         use std::os::unix::fs::FileTypeExt;
@@ -36,7 +35,7 @@ pub fn validate_device_path(device: &Path) -> Result<()> {
             anyhow::bail!("❌ {:?} is not a block device", device);
         }
     }
-    
+
     Ok(())
 }
 
@@ -45,20 +44,22 @@ pub fn validate_iso_file(iso_path: &Path) -> Result<()> {
     if !iso_path.exists() {
         anyhow::bail!("❌ ISO file does not exist: {:?}", iso_path);
     }
-    
+
     if !iso_path.is_file() {
         anyhow::bail!("❌ {:?} is not a file", iso_path);
     }
-    
+
     // Check file size (should be at least a few MB)
-    let metadata = std::fs::metadata(iso_path)
-        .context("Failed to get ISO file metadata")?;
-    
+    let metadata = std::fs::metadata(iso_path).context("Failed to get ISO file metadata")?;
+
     let size = metadata.len();
     if size < 1024 * 1024 {
-        anyhow::bail!("❌ File seems too small to be a valid ISO ({})", format_size(size));
+        anyhow::bail!(
+            "❌ File seems too small to be a valid ISO ({})",
+            format_size(size)
+        );
     }
-    
+
     // Optional: Check file extension
     if let Some(ext) = iso_path.extension() {
         let ext_lower = ext.to_string_lossy().to_lowercase();
@@ -66,14 +67,14 @@ pub fn validate_iso_file(iso_path: &Path) -> Result<()> {
             println!("⚠️  Warning: File extension is not .iso or .img");
         }
     }
-    
+
     Ok(())
 }
 
 /// Format size in human-readable format
 pub fn format_size(size: u64) -> String {
     let size_f = size as f64;
-    
+
     if size_f < 1024.0 {
         format!("{} B", size)
     } else if size_f < 1024.0 * 1024.0 {
@@ -89,37 +90,39 @@ pub fn format_size(size: u64) -> String {
 
 /// Unmount all partitions of a device
 pub fn unmount_device(device_name: &str) -> Result<()> {
-    let mounts = std::fs::read_to_string("/proc/mounts")
-        .context("Failed to read /proc/mounts")?;
-    
+    let mounts = std::fs::read_to_string("/proc/mounts").context("Failed to read /proc/mounts")?;
+
     let mut mounted_partitions = Vec::new();
-    
+
     for line in mounts.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() < 2 {
             continue;
         }
-        
+
         let mount_device = parts[0];
         if mount_device.contains(device_name) {
             mounted_partitions.push((mount_device.to_string(), parts[1].to_string()));
         }
     }
-    
+
     if mounted_partitions.is_empty() {
         return Ok(());
     }
-    
-    println!("\n🔓 Unmounting {} partition(s)...", mounted_partitions.len());
-    
+
+    println!(
+        "\n🔓 Unmounting {} partition(s)...",
+        mounted_partitions.len()
+    );
+
     for (device, mount_point) in mounted_partitions {
         print!("   Unmounting {} from {}... ", device, mount_point);
-        
+
         let output = std::process::Command::new("umount")
             .arg(&device)
             .output()
             .context("Failed to execute umount")?;
-        
+
         if output.status.success() {
             println!("✓");
         } else {
@@ -127,14 +130,14 @@ pub fn unmount_device(device_name: &str) -> Result<()> {
             anyhow::bail!("Failed to unmount {}: {}", device, error);
         }
     }
-    
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_format_size() {
         assert_eq!(format_size(512), "512 B");

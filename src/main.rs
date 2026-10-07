@@ -3,8 +3,8 @@ mod usb;
 mod utils;
 mod writer;
 
-use cli::{Cli, Commands};
 use anyhow::Result;
+use cli::{Cli, Commands};
 
 slint::include_modules!();
 
@@ -36,7 +36,7 @@ fn main() -> Result<()> {
                 println!("  Auto-confirm: {}", yes);
                 println!("  Verify:  {}", verify);
                 println!("  Resume:  {}", resume);
-                
+
                 write_iso(&iso, &devices, yes, verify, resume)?;
             }
 
@@ -51,7 +51,7 @@ fn main() -> Result<()> {
                 if let Some(ref hash) = checksum {
                     println!("  Expected:  {}", hash);
                 }
-                
+
                 verify_iso(&iso, checksum.as_deref(), &algorithm)?;
             }
         }
@@ -65,20 +65,27 @@ fn main() -> Result<()> {
 fn require_root_or_pkexec() {
     if unsafe { libc::geteuid() } != 0 {
         println!("Elevating privileges via pkexec...");
-        
-        let exe_path = match std::env::current_exe() {
-            Ok(path) => path,
-            Err(_) => {
-                eprintln!("Failed to get current executable path.");
-                std::process::exit(1);
-            }
-        };
-        
-        let mut args: Vec<String> = std::env::args().collect();
-        if !args.is_empty() {
-            args[0] = exe_path.to_string_lossy().into_owned();
+
+        let appimage_env = std::env::var("APPIMAGE").ok();
+        let original_args: Vec<String> = std::env::args().skip(1).collect();
+
+        let mut exec_args = Vec::new();
+        if let Some(ref appimage_path) = appimage_env {
+            // Under AppImage, re-launch the AppImage container with --appimage-extract-and-run
+            // because root cannot access user FUSE mountpoints (/tmp/.mount_XXXX).
+            exec_args.push(appimage_path.clone());
+            exec_args.push("--appimage-extract-and-run".to_string());
+            exec_args.extend(original_args);
         } else {
-            args.push(exe_path.to_string_lossy().into_owned());
+            let exe_path = match std::env::current_exe() {
+                Ok(path) => path,
+                Err(_) => {
+                    eprintln!("Failed to get current executable path.");
+                    std::process::exit(1);
+                }
+            };
+            exec_args.push(exe_path.to_string_lossy().into_owned());
+            exec_args.extend(original_args);
         }
 
         let display = std::env::var("DISPLAY").unwrap_or_default();
@@ -86,7 +93,7 @@ fn require_root_or_pkexec() {
         let wayland_display = std::env::var("WAYLAND_DISPLAY").unwrap_or_default();
         let xdg_runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_default();
         let dbus_session = std::env::var("DBUS_SESSION_BUS_ADDRESS").unwrap_or_default();
-        
+
         let mut cmd = std::process::Command::new("pkexec");
         cmd.arg("env");
         if !display.is_empty() {
@@ -95,8 +102,10 @@ fn require_root_or_pkexec() {
         if !xauthority.is_empty() {
             cmd.arg(format!("XAUTHORITY={}", xauthority));
         } else if let Ok(home) = std::env::var("HOME") {
-            // Default XAUTHORITY location
-            cmd.arg(format!("XAUTHORITY={}/.Xauthority", home));
+            let default_xauth = format!("{}/.Xauthority", home);
+            if std::path::Path::new(&default_xauth).exists() {
+                cmd.arg(format!("XAUTHORITY={}", default_xauth));
+            }
         }
         if !wayland_display.is_empty() {
             cmd.arg(format!("WAYLAND_DISPLAY={}", wayland_display));
@@ -107,16 +116,19 @@ fn require_root_or_pkexec() {
         if !dbus_session.is_empty() {
             cmd.arg(format!("DBUS_SESSION_BUS_ADDRESS={}", dbus_session));
         }
-        
-        cmd.args(args);
-        
+
+        cmd.args(exec_args);
+
         let status = cmd.status();
-        
-        if let Ok(st) = status {
-            std::process::exit(st.code().unwrap_or(1));
-        } else {
-            eprintln!("Failed to elevate privileges. Please run as root.");
-            std::process::exit(1);
+
+        match status {
+            Ok(st) => {
+                std::process::exit(st.code().unwrap_or(1));
+            }
+            Err(e) => {
+                eprintln!("Failed to execute pkexec: {}. Please run as root.", e);
+                std::process::exit(1);
+            }
         }
     }
 }
@@ -140,7 +152,8 @@ fn run_gui() -> Result<()> {
     app.on_select_iso(move || {
         if let Some(path) = rfd::FileDialog::new()
             .add_filter("ISO Image", &["iso"])
-            .pick_file() {
+            .pick_file()
+        {
             if let Some(app) = app_weak_iso.upgrade() {
                 app.set_selected_iso(path.to_string_lossy().to_string().into());
             }
@@ -152,20 +165,26 @@ fn run_gui() -> Result<()> {
         let app = app_weak_flash.unwrap();
         let iso = app.get_selected_iso().to_string();
         let dev_str = app.get_selected_device().to_string();
-        
-        if iso == "No ISO selected" || dev_str.is_empty() || dev_str == "Loading devices..." { return; }
-        
-        let device_name = dev_str.split(" -").next().unwrap_or(&dev_str).replace("/dev/", "");
+
+        if iso == "No ISO selected" || dev_str.is_empty() || dev_str == "Loading devices..." {
+            return;
+        }
+
+        let device_name = dev_str
+            .split(" -")
+            .next()
+            .unwrap_or(&dev_str)
+            .replace("/dev/", "");
         let device_path = std::path::PathBuf::from(format!("/dev/{}", device_name));
         let iso_path = std::path::PathBuf::from(&iso);
-        
+
         app.set_is_flashing(true);
         app.set_status_text("Starting write process...".into());
         app.set_progress_value(0.0);
         app.set_terminal_logs("".into());
-        
+
         let (tx, rx) = std::sync::mpsc::channel();
-        
+
         // Receiver thread for GUI updates
         let app_rx = app_weak_flash.clone();
         std::thread::spawn(move || {
@@ -192,8 +211,14 @@ fn run_gui() -> Result<()> {
         std::thread::spawn(move || {
             let _ = crate::utils::unmount_device(&device_name);
 
-            let res = crate::writer::write_iso_to_devices(&iso_path, &[device_path], verify, resume, Some(tx));
-            
+            let res = crate::writer::write_iso_to_devices(
+                &iso_path,
+                &[device_path],
+                verify,
+                resume,
+                Some(tx),
+            );
+
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(app) = app_bg.upgrade() {
                     app.set_is_flashing(false);
@@ -222,13 +247,21 @@ fn update_devices(app: &AppWindow) {
     let mut slint_devices = Vec::new();
     if let Ok(devices) = crate::usb::list_usb_devices() {
         for d in devices {
-            slint_devices.push(format!("/dev/{} - {} ({})", d.name, d.model, crate::utils::format_size(d.size)).into());
+            slint_devices.push(
+                format!(
+                    "/dev/{} - {} ({})",
+                    d.name,
+                    d.model,
+                    crate::utils::format_size(d.size)
+                )
+                .into(),
+            );
         }
     }
     if slint_devices.is_empty() {
         slint_devices.push("No USB devices found".into());
     }
-    
+
     use slint::Model;
     let model = std::rc::Rc::new(slint::VecModel::from(slint_devices));
     app.set_device_list(model.clone().into());
@@ -254,17 +287,21 @@ fn write_iso(
     use std::io::{self, Write};
 
     // 1. Check root permissions
-    println!("\n🔐 Checking permissions...");
+    println!("\n🔑 Checking permissions...");
     utils::require_root_privileges()?;
     println!("✓ Running with root privileges");
 
     // 2. Validate ISO file
     println!("\n📋 Validating ISO file...");
     utils::validate_iso_file(iso)?;
-    
+
     let iso_metadata = std::fs::metadata(iso)?;
     let iso_size = iso_metadata.len();
-    println!("✓ ISO file valid: {} ({})", iso.display(), utils::format_size(iso_size));
+    println!(
+        "✓ ISO file valid: {} ({})",
+        iso.display(),
+        utils::format_size(iso_size)
+    );
 
     let usb_devices = usb::list_usb_devices()?;
 
@@ -275,23 +312,30 @@ fn write_iso(
         println!("✓ Device valid: {}", device.display());
 
         // 4. Check if device is really a USB
-        let device_name = device.file_name()
+        let device_name = device
+            .file_name()
             .and_then(|n| n.to_str())
             .ok_or_else(|| anyhow::anyhow!("Invalid device name for {}", device.display()))?;
-        
+
         let is_usb = usb_devices.iter().any(|d| d.name == device_name);
-        
+
         if !is_usb {
-            println!("\n⚠️  WARNING: {} does not appear to be a removable USB device!", device.display());
+            println!(
+                "\n⚠️  WARNING: {} does not appear to be a removable USB device!",
+                device.display()
+            );
             println!("   This might be an internal disk!");
-            
+
             if !skip_confirm {
-                print!("\n❓ Are you ABSOLUTELY SURE you want to continue with {}? (type 'YES' in capitals): ", device.display());
+                print!(
+                    "\n❓ Are you ABSOLUTELY SURE you want to continue with {}? (type 'YES' in capitals): ",
+                    device.display()
+                );
                 io::stdout().flush()?;
-                
+
                 let mut input = String::new();
                 io::stdin().read_line(&mut input)?;
-                
+
                 if input.trim() != "YES" {
                     println!("❌ Operation cancelled for safety.");
                     return Ok(());
@@ -311,15 +355,15 @@ fn write_iso(
                     usb_dev.size
                 );
             }
-            
+
             println!("📊 Space check for {}:", device.display());
             println!("   ISO size:    {}", utils::format_size(iso_size));
             println!("   Device size: {}", utils::format_size(usb_dev.size));
             println!("   ✓ Sufficient space available");
-            
+
             // 6. Unmount if necessary
             if usb_dev.is_mounted {
-                println!("🔓 Device {} is mounted, unmounting...", device.display());
+                println!("\n🔓 Device {} is mounted, unmounting...", device.display());
                 utils::unmount_device(device_name)?;
                 println!("✓ Device unmounted successfully");
             }
@@ -335,7 +379,8 @@ fn write_iso(
         println!("This will COMPLETELY ERASE all data on the following devices:");
         for device in devices {
             let device_name = device.file_name().unwrap().to_str().unwrap();
-            let size = usb_devices.iter()
+            let size = usb_devices
+                .iter()
                 .find(|d| d.name == device_name)
                 .map(|d| d.size)
                 .unwrap_or(0);
@@ -350,13 +395,13 @@ fn write_iso(
         }
         println!();
         println!("{}", "=".repeat(60));
-        
+
         print!("\n❓ Type 'yes' to confirm and start writing: ");
         io::stdout().flush()?;
-        
+
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
-        
+
         if input.trim().to_lowercase() != "yes" {
             println!("\n❌ Operation cancelled.");
             return Ok(());
@@ -367,14 +412,14 @@ fn write_iso(
     println!("\n{}", "=".repeat(60));
     println!("🔥 STARTING WRITE PROCESS");
     println!("{}", "=".repeat(60));
-    
+
     let start_time = std::time::Instant::now();
-    
+
     writer::write_iso_to_devices(iso, devices, verify, resume, None)?;
-    
+
     let elapsed = start_time.elapsed();
     let speed = writer::calculate_speed(iso_size * devices.len() as u64, elapsed.as_secs_f64());
-    
+
     println!("\n{}", "=".repeat(60));
     println!("✅ SUCCESS!");
     println!("{}", "=".repeat(60));
@@ -382,26 +427,26 @@ fn write_iso(
     println!("   Overall speed: {}", speed);
     println!("   Devices written: {}", devices.len());
     println!("{}", "=".repeat(60));
-    
+
     Ok(())
 }
 
 fn verify_iso(iso: &std::path::Path, expected: Option<&str>, algorithm: &str) -> Result<()> {
+    use indicatif::{ProgressBar, ProgressStyle};
+    use md5::Md5;
+    use sha2::{Digest, Sha256};
     use std::fs::File;
     use std::io::Read;
-    use sha2::{Sha256, Digest};
-    use md5::Md5;
-    use indicatif::{ProgressBar, ProgressStyle};
 
     if !iso.exists() {
         anyhow::bail!("❌ ISO file not found: {:?}", iso);
     }
 
-    println!("\n🔐 Calculating {} checksum...", algorithm.to_uppercase());
-    
+    println!("\n🔑 Calculating {} checksum...", algorithm.to_uppercase());
+
     let mut file = File::open(iso)?;
     let iso_size = file.metadata()?.len();
-    
+
     let progress = ProgressBar::new(iso_size);
     progress.set_style(
         ProgressStyle::default_bar()
@@ -427,7 +472,7 @@ fn verify_iso(iso: &std::path::Path, expected: Option<&str>, algorithm: &str) ->
                 progress.set_position(total_read);
             }
             hex::encode(hasher.finalize())
-        },
+        }
         "md5" => {
             let mut hasher = Md5::new();
             loop {
@@ -440,11 +485,14 @@ fn verify_iso(iso: &std::path::Path, expected: Option<&str>, algorithm: &str) ->
                 progress.set_position(total_read);
             }
             hex::encode(hasher.finalize())
-        },
+        }
         _ => {
             progress.finish_and_clear();
-            anyhow::bail!("❌ Unsupported algorithm: {}. Please use 'sha256' or 'md5'.", algorithm);
-        },
+            anyhow::bail!(
+                "❌ Unsupported algorithm: {}. Please use 'sha256' or 'md5'.",
+                algorithm
+            );
+        }
     };
 
     progress.finish_with_message("✓ Checksum calculated");
@@ -461,6 +509,6 @@ fn verify_iso(iso: &std::path::Path, expected: Option<&str>, algorithm: &str) ->
     } else {
         println!("\n   Calculated checksum: {}", calculated);
     }
-    
+
     Ok(())
 }

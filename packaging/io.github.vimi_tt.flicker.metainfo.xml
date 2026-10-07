@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.vimi_tt.flicker</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Flicker</name>
+  <summary>A modern, fast, and safe USB bootable drive creator for Linux</summary>
+  <developer id="io.github.vimi_tt">
+    <name>Vitor Miranda</name>
+  </developer>
+  <description>
+    <p>
+      Flicker is a fast, reliable, and user-friendly USB bootable drive creator designed for Linux.
+      It allows you to write ISO images to USB drives with robust safety validations to protect your data.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Automatic detection of removable USB storage devices</li>
+      <li>Smart safety checks, confirmation dialogs, and automatic unmounting</li>
+      <li>High-speed buffered writing with real-time speed and ETA</li>
+      <li>Optional post-write verification and resume capability</li>
+      <li>Modern GNOME-inspired interface and robust CLI mode</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">flicker.desktop</launchable>
+  <url type="homepage">https://github.com/vimi-tt/Flicker</url>
+  <url type="bugtracker">https://github.com/vimi-tt/Flicker/issues</url>
+  <provides>
+    <binary>flicker</binary>
+  </provides>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="1.0.0" date="2026-10-07">
+      <description>
+        <p>Official 1.0.0 Release with AppImage support and redesigned modern interface.</p>
+      </description>
+    </release>
+  </releases>
+</component>
