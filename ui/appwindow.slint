@@ -1,208 +1,403 @@
-import { Button, CheckBox, ComboBox, ProgressIndicator, VerticalBox, LineEdit, TextEdit } from "std-widgets.slint";
+import { Button, CheckBox, ComboBox, LineEdit, TextEdit, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
+import { HeaderBar, AdwButton, PreferencesGroup, StatusBanner, SlimProgressBar } from "components.slint";
 
 export { Theme }
 
 export component AppWindow inherits Window {
-    title: "Flicker - USB Bootable Drive Creator";
+    title: "Flicker";
     icon: @image-url("../Flicker.png");
-    preferred-width: 800px;
-    preferred-height: 540px;
-    min-width: 700px;
-    min-height: 480px;
+    preferred-width: 820px;
+    preferred-height: 640px;
+    min-width: 680px;
+    min-height: 520px;
     background: Theme.window_bg;
     default-font-family: Theme.font_family;
-    
+
+    // Backend properties
     in property <[string]> device_list: ["Loading devices..."];
     in-out property <string> status_text: "Ready to flash";
+    in-out property <string> banner_type: "info"; // info, warning, success, error
     in property <float> progress_value: 0.0;
     in property <bool> is_flashing: false;
     in-out property <string> selected_iso: "No ISO selected";
     in-out property <string> selected_device: "";
-    
     in property <string> terminal_logs: "";
-    
     in-out property <bool> opt_verify: true;
     in-out property <bool> opt_resume: false;
-    
     in-out property <bool> has_started: false;
-    
+
+    // UI state
+    property <bool> show_confirm_dialog: false;
+    property <bool> show_logs: false;
+
+    // Backend callbacks
     callback select_iso();
     callback flash(bool, bool);
     callback refresh_devices();
-    
-    // Left Column
-    VerticalBox {
-        x: 24px;
-        y: 24px;
-        width: 320px;
-        height: root.height - 128px;
-        spacing: 24px;
-        
-        Text {
-            text: "Flicker";
-            font-size: 36px;
-            font-weight: 700;
-            horizontal-alignment: center;
-        }
-        
-        VerticalBox {
-            spacing: 8px;
-            Text { text: "1. Source Image"; font-weight: 600; }
-            LineEdit {
-                text: root.selected_iso;
-                read-only: true;
-                width: 100%;
-            }
-            Button {
-                text: "Browse...";
-                enabled: !root.is_flashing;
-                clicked => { root.select_iso(); }
-            }
-        }
-        
-        VerticalBox {
-            spacing: 8px;
-            Text { text: "2. Target Device"; font-weight: 600; }
-            ComboBox {
-                model: root.device_list;
-                enabled: !root.is_flashing;
-                current-value <=> root.selected_device;
-                width: 100%;
-            }
-            Button {
-                text: "Refresh";
+
+    VerticalLayout {
+        spacing: 0px;
+
+        // 1. Compact GNOME Adwaita HeaderBar
+        HeaderBar {
+            title: "Flicker";
+            subtitle: "USB Bootable Drive Creator";
+
+            // Rescan devices button
+            AdwButton {
+                text: "🔄 Rescan";
+                variant: "flat";
                 enabled: !root.is_flashing;
                 clicked => { root.refresh_devices(); }
             }
+
+            // Theme toggle button
+            AdwButton {
+                text: Theme.is_dark ? "☀️ Light" : "🌙 Dark";
+                variant: "flat";
+                clicked => { Theme.is_dark = !Theme.is_dark; }
+            }
         }
-        
-        Rectangle { vertical-stretch: 1; }
-    }
-    
-    // Separator
-    Rectangle {
-        x: 360px;
-        y: 24px;
-        width: 1px;
-        height: root.height - 48px;
-        background: Theme.row_separator;
-    }
-    
-    // Right Column
-    VerticalBox {
-        x: 377px;
-        y: 24px;
-        width: root.width - 377px - 24px;
-        height: root.has_started ? root.height - 136px : root.height - 48px;
-        animate height { duration: 600ms; easing: cubic-bezier(0.2, 0, 0, 1); }
-        spacing: 12px;
-        
-        Text { text: "Options"; font-weight: 600; }
-        CheckBox {
-            text: "Verify data after writing";
-            checked <=> root.opt_verify;
-            enabled: !root.is_flashing;
-        }
-        CheckBox {
-            text: "Resume interrupted write";
-            checked <=> root.opt_resume;
-            enabled: !root.is_flashing;
-        }
-        
-        Rectangle { height: 12px; } // Spacer
-        
-        Text { text: "Terminal Log:"; font-weight: 600; }
-        TextEdit {
-            text: root.terminal_logs;
-            read-only: true;
+
+        // 2. Main Content Area (Centered clamp)
+        ScrollView {
             vertical-stretch: 1;
+
+            VerticalLayout {
+                padding-top: Theme.spacing_lg;
+                padding-bottom: Theme.spacing_xl;
+                padding-left: Theme.spacing_xl;
+                padding-right: Theme.spacing_xl;
+                spacing: Theme.spacing_lg;
+                alignment: start;
+
+                // Group: Source ISO Image
+                PreferencesGroup {
+                    title: "SOURCE IMAGE";
+                    description: "Select the bootable operating system or disk image (.iso, .img)";
+
+                    HorizontalLayout {
+                        spacing: Theme.spacing_md;
+                        alignment: center;
+
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 3px;
+
+                            Text {
+                                text: root.selected_iso == "No ISO selected" ? "No file selected" : root.selected_iso;
+                                font-family: Theme.font_family;
+                                font-size: Theme.font_size_body;
+                                font-weight: 600;
+                                color: root.selected_iso == "No ISO selected" ? Theme.text_muted : Theme.text_primary;
+                                overflow: elide;
+                            }
+
+                            Text {
+                                text: root.selected_iso == "No ISO selected" ? "Choose an ISO image from your local storage" : "Ready to be written";
+                                font-family: Theme.font_family;
+                                font-size: Theme.font_size_caption;
+                                color: Theme.text_secondary;
+                            }
+                        }
+
+                        AdwButton {
+                            text: "Select Image…";
+                            variant: root.selected_iso == "No ISO selected" ? "suggested" : "normal";
+                            enabled: !root.is_flashing;
+                            clicked => { root.select_iso(); }
+                        }
+                    }
+                }
+
+                // Group: Target USB Device
+                PreferencesGroup {
+                    title: "TARGET DRIVE";
+                    description: "Select the removable USB drive where the image will be written";
+
+                    VerticalLayout {
+                        spacing: Theme.spacing_sm;
+
+                        HorizontalLayout {
+                            spacing: Theme.spacing_md;
+                            alignment: center;
+
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                spacing: 3px;
+
+                                Text {
+                                    text: "Destination Drive";
+                                    font-family: Theme.font_family;
+                                    font-size: Theme.font_size_body;
+                                    font-weight: 600;
+                                    color: Theme.text_primary;
+                                }
+
+                                Text {
+                                    text: "All existing data on this drive will be overwritten";
+                                    font-family: Theme.font_family;
+                                    font-size: Theme.font_size_caption;
+                                    color: Theme.text_secondary;
+                                }
+                            }
+
+                            ComboBox {
+                                width: 280px;
+                                model: root.device_list;
+                                enabled: !root.is_flashing;
+                                current-value <=> root.selected_device;
+                            }
+                        }
+                    }
+                }
+
+                // Group: Flashing Options
+                PreferencesGroup {
+                    title: "OPTIONS";
+                    description: "Advanced verification and resumption preferences";
+
+                    VerticalLayout {
+                        spacing: Theme.spacing_sm;
+
+                        HorizontalLayout {
+                            alignment: space-between;
+
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text {
+                                    text: "Verify after writing";
+                                    font-family: Theme.font_family;
+                                    font-size: Theme.font_size_body;
+                                    font-weight: 500;
+                                    color: Theme.text_primary;
+                                }
+                                Text {
+                                    text: "Performs byte-by-byte check against the source image";
+                                    font-family: Theme.font_family;
+                                    font-size: Theme.font_size_caption;
+                                    color: Theme.text_secondary;
+                                }
+                            }
+
+                            CheckBox {
+                                checked <=> root.opt_verify;
+                                enabled: !root.is_flashing;
+                            }
+                        }
+
+                        // Subtle row separator
+                        Rectangle {
+                            height: 1px;
+                            background: Theme.row_separator;
+                        }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+
+                            VerticalLayout {
+                                spacing: 2px;
+                                Text {
+                                    text: "Resume interrupted write";
+                                    font-family: Theme.font_family;
+                                    font-size: Theme.font_size_body;
+                                    font-weight: 500;
+                                    color: Theme.text_primary;
+                                }
+                                Text {
+                                    text: "Skips identical blocks to speed up re-writing";
+                                    font-family: Theme.font_family;
+                                    font-size: Theme.font_size_caption;
+                                    color: Theme.text_secondary;
+                                }
+                            }
+
+                            CheckBox {
+                                checked <=> root.opt_resume;
+                                enabled: !root.is_flashing;
+                            }
+                        }
+                    }
+                }
+
+                // Group: Activity & Progress (Displays when flashing or completed)
+                if (root.has_started): PreferencesGroup {
+                    title: "PROCESS STATUS";
+
+                    VerticalLayout {
+                        spacing: Theme.spacing_md;
+
+                        StatusBanner {
+                            banner_type: root.banner_type;
+                            title: root.status_text;
+                            message: root.is_flashing ? "Writing in progress… Please do not remove the USB drive." : "Operation completed.";
+                        }
+
+                        // Slim Adwaita Progress Bar
+                        VerticalLayout {
+                            spacing: Theme.spacing_xs;
+
+                            SlimProgressBar {
+                                progress: root.progress_value;
+                            }
+
+                            HorizontalLayout {
+                                alignment: space-between;
+
+                                Text {
+                                    text: Math.round(root.progress_value * 100) + "%";
+                                    font-family: Theme.font_family;
+                                    font-size: Theme.font_size_caption;
+                                    font-weight: 600;
+                                    color: Theme.text_secondary;
+                                }
+
+                                Text {
+                                    text: root.is_flashing ? "Active" : "Idle";
+                                    font-family: Theme.font_family;
+                                    font-size: Theme.font_size_caption;
+                                    color: Theme.text_muted;
+                                }
+                            }
+                        }
+
+                        // Toggle logs button
+                        HorizontalLayout {
+                            alignment: space-between;
+
+                            Text {
+                                text: "Terminal Log Output";
+                                font-family: Theme.font_family;
+                                font-size: Theme.font_size_body;
+                                font-weight: 500;
+                                color: Theme.text_primary;
+                                vertical-alignment: center;
+                            }
+
+                            AdwButton {
+                                text: root.show_logs ? "Hide Details" : "Show Details";
+                                variant: "flat";
+                                clicked => { root.show_logs = !root.show_logs; }
+                            }
+                        }
+
+                        // Expanded console log
+                        if (root.show_logs): Rectangle {
+                            height: 140px;
+                            background: Theme.log_bg;
+                            border-color: Theme.log_border;
+                            border-width: 1px;
+                            border-radius: Theme.radius_sm;
+
+                            TextEdit {
+                                text: root.terminal_logs;
+                                read-only: true;
+                                font-size: Theme.font_size_mono;
+                            }
+                        }
+                    }
+                }
+
+                // 3. Primary Destructive Flash Action
+                VerticalLayout {
+                    spacing: Theme.spacing_sm;
+                    alignment: center;
+
+                    AdwButton {
+                        min_btn_width: 320px;
+                        height: 44px;
+                        text: root.is_flashing ? "Writing to USB…" : "Flash to Drive";
+                        variant: "destructive";
+                        enabled: !root.is_flashing
+                            && root.selected_iso != "No ISO selected"
+                            && root.selected_device != ""
+                            && root.selected_device != "Loading devices..."
+                            && root.selected_device != "No USB devices found";
+                        clicked => {
+                            root.show_confirm_dialog = true;
+                        }
+                    }
+
+                    Text {
+                        text: "⚠️ Writing will erase all files and partitions on the selected USB drive.";
+                        font-family: Theme.font_family;
+                        font-size: Theme.font_size_caption;
+                        color: Theme.text_muted;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
         }
     }
-    
-    // Morphing Container (Button -> Progress)
-    Rectangle {
-        clip: true;
-        
-        // State properties
-        property <length> idle_x: 24px;
-        property <length> idle_y: root.height - 80px;
-        property <length> idle_w: 320px;
-        property <length> idle_h: 56px;
-        
-        property <length> active_x: 377px;
-        property <length> active_y: root.height - 96px;
-        property <length> active_w: root.width - 377px - 24px;
-        property <length> active_h: 72px;
-        
-        x: root.has_started ? active_x : idle_x;
-        y: root.has_started ? active_y : idle_y;
-        width: root.has_started ? active_w : idle_w;
-        height: root.has_started ? active_h : idle_h;
-        
-        background: root.has_started ? Theme.card_bg : Theme.suggested_bg;
-        border-radius: root.has_started ? Theme.radius_card : Theme.radius_pill;
-        
-        animate x, y, width, height, border-radius, background {
-            duration: 600ms;
-            easing: cubic-bezier(0.2, 0, 0, 1);
-        }
-        
-        // Idle Content (Button Text)
-        Text {
-            text: "FLASH!";
-            color: Theme.suggested_text;
-            font-size: 16px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            width: parent.width;
-            height: parent.height;
-            opacity: root.has_started ? 0.0 : (root.selected_iso != "No ISO selected" && root.selected_device != "" && root.selected_device != "Loading devices..." ? 1.0 : 0.4);
-            animate opacity { duration: 200ms; }
-        }
-        
-        // Active Content (Progress)
-        VerticalBox {
-            width: parent.width;
-            height: parent.height;
-            padding: 16px;
-            spacing: 8px;
-            opacity: root.has_started ? 1.0 : 0.0;
-            animate opacity { duration: 300ms; delay: 300ms; }
-            
-            Text {
-                text: root.status_text;
-                font-size: 14px;
-                font-weight: 700;
-                horizontal-alignment: center;
-                color: Theme.text_primary;
-            }
-            
-            ProgressIndicator {
-                progress: root.progress_value;
-                height: 12px;
-            }
-        }
-        
-        // Interaction
-        TouchArea {
-            width: parent.width;
-            height: parent.height;
-            enabled: !root.is_flashing && !root.has_started && root.selected_iso != "No ISO selected" && root.selected_device != "" && root.selected_device != "Loading devices...";
-            mouse-cursor: self.enabled ? pointer : default;
-            clicked => {
-                root.has_started = true;
-                root.flash(root.opt_verify, root.opt_resume);
-            }
-            
-            // Hover effect for the button
-            Rectangle {
-                width: parent.width;
-                height: parent.height;
-                background: white;
-                opacity: parent.has-hover && !root.has_started && parent.enabled ? 0.12 : 0.0;
-                animate opacity { duration: 150ms; }
+
+    // 4. Modal Safety Confirmation Dialog (GNOME AdwMessageDialog pattern)
+    if (root.show_confirm_dialog): Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 100%;
+        height: 100%;
+        background: #00000088; // Backdrop overlay
+
+        // Dialog card
+        Rectangle {
+            width: 480px;
+            height: 250px;
+            background: Theme.card_bg;
+            border-color: Theme.card_border;
+            border-width: 1px;
+            border-radius: Theme.radius_card;
+            clip: true;
+
+            VerticalLayout {
+                padding: Theme.spacing_lg;
+                spacing: Theme.spacing_md;
+                alignment: space-between;
+
+                VerticalLayout {
+                    spacing: Theme.spacing_sm;
+
+                    Text {
+                        text: "⚠️ Confirm Erase and Flash";
+                        font-family: Theme.font_family;
+                        font-size: Theme.font_size_heading;
+                        font-weight: 700;
+                        color: Theme.destructive_bg;
+                    }
+
+                    Text {
+                        text: "Are you sure you want to write the selected image to:\n" + root.selected_device + "\n\nAll existing data and partitions on this drive will be permanently erased.";
+                        font-family: Theme.font_family;
+                        font-size: Theme.font_size_body;
+                        color: Theme.text_primary;
+                        wrap: word-wrap;
+                    }
+                }
+
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: Theme.spacing_md;
+
+                    AdwButton {
+                        text: "Cancel";
+                        variant: "normal";
+                        clicked => {
+                            root.show_confirm_dialog = false;
+                        }
+                    }
+
+                    AdwButton {
+                        text: "Erase and Flash";
+                        variant: "destructive";
+                        clicked => {
+                            root.show_confirm_dialog = false;
+                            root.has_started = true;
+                            root.flash(root.opt_verify, root.opt_resume);
+                        }
+                    }
+                }
             }
         }
     }

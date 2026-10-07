@@ -187,6 +187,7 @@ fn run_gui() -> Result<()> {
 
         app.set_is_flashing(true);
         app.set_status_text("Starting write process...".into());
+        app.set_banner_type("info".into());
         app.set_progress_value(0.0);
         app.set_terminal_logs("".into());
 
@@ -201,7 +202,14 @@ fn run_gui() -> Result<()> {
                     if let Some(app) = app_update.upgrade() {
                         match msg {
                             crate::writer::ProgressMsg::Progress(p) => app.set_progress_value(p),
-                            crate::writer::ProgressMsg::Status(s) => app.set_status_text(s.into()),
+                            crate::writer::ProgressMsg::Status(s) => {
+                                if s.contains("Syncing") {
+                                    app.set_banner_type("warning".into());
+                                } else {
+                                    app.set_banner_type("info".into());
+                                }
+                                app.set_status_text(s.into());
+                            }
                             crate::writer::ProgressMsg::Log(l) => {
                                 let mut logs = app.get_terminal_logs().to_string();
                                 logs.push_str(&l);
@@ -232,9 +240,11 @@ fn run_gui() -> Result<()> {
                     match res {
                         Ok(_) => {
                             app.set_progress_value(1.0);
+                            app.set_banner_type("success".into());
                             app.set_status_text("✅ Write completed successfully!".into());
                         }
                         Err(e) => {
+                            app.set_banner_type("error".into());
                             app.set_status_text(format!("❌ Error: {}", e).into());
                             let mut logs = app.get_terminal_logs().to_string();
                             logs.push_str(&format!("\nERROR: {}\n", e));
