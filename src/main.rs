@@ -164,14 +164,21 @@ fn run_gui() -> Result<()> {
 
     let app_weak_iso = app_weak.clone();
     app.on_select_iso(move || {
-        if let Some(path) = rfd::FileDialog::new()
-            .add_filter("ISO Image", &["iso"])
-            .pick_file()
-        {
-            if let Some(app) = app_weak_iso.upgrade() {
-                app.set_selected_iso(path.to_string_lossy().to_string().into());
+        let app_weak_cb = app_weak_iso.clone();
+        std::thread::spawn(move || {
+            if let Some(path) = rfd::FileDialog::new()
+                .add_filter("Disk Images (*.iso, *.img)", &["iso", "img"])
+                .add_filter("All Files (*.*)", &["*"])
+                .pick_file()
+            {
+                let path_str = path.to_string_lossy().to_string();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = app_weak_cb.upgrade() {
+                        app.set_selected_iso(path_str.into());
+                    }
+                });
             }
-        }
+        });
     });
 
     let app_weak_flash = app_weak.clone();
