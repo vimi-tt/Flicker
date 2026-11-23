@@ -1,5 +1,7 @@
 # Rust
 /target/
+/target-cli/
+/dist/
 **/*.rs.bk
 *.pdb
 

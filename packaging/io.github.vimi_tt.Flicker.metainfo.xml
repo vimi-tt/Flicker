@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.vimi_tt.Flicker</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Flicker</name>
+  <summary>Rufus-style USB bootable drive creator for Linux</summary>
+  <description>
+    <p>
+      Flicker is a fast, safe USB bootable drive creator for Linux written in Rust with a Material Design 3 Expressive interface.
+    </p>
+    <ul>
+      <li>Create bootable USB drives from Linux hybrid ISOs, Windows 10/11 ISOs, and compressed raw images (.gz, .xz, .zst)</li>
+      <li>Format USB drives cleanly (GPT/MBR + FAT32, NTFS, exFAT, ext4)</li>
+      <li>Real post-write verification with OS page-cache invalidation</li>
+      <li>Unprivileged Wayland-friendly GUI with pkexec elevation only for write/format operations</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">flicker.desktop</launchable>
+  <url type="homepage">https://github.com/vimi-tt/Flicker</url>
+  <developer_name>Vitor Miranda</developer_name>
+  <content_rating type="oars-1.1" />
+</component>

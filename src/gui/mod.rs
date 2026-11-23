@@ -813,13 +813,28 @@ fn stream_pkexec_command(
     }
 }
 
+/// Resolve the executable path for `pkexec`.
+///
+/// Inside an AppImage, `current_exe()` points to a user-owned FUSE mount (`/tmp/.mount_*`)
+/// which `root` cannot access by default. Using `$APPIMAGE` invokes the real on-disk AppImage
+/// binary so `pkexec` works reliably.
+fn resolve_pkexec_executable() -> Result<PathBuf> {
+    if let Ok(appimage) = std::env::var("APPIMAGE") {
+        let path = PathBuf::from(&appimage);
+        if path.is_file() {
+            return Ok(path);
+        }
+    }
+    Ok(std::env::current_exe()?)
+}
+
 fn run_pkexec_helper_format(
     device_paths: &[PathBuf],
     cfg: &ActionConfig,
     app_bg: &slint::Weak<AppWindow>,
     state_bg: &Arc<Mutex<GuiState>>,
 ) -> Result<()> {
-    let exe_path = std::env::current_exe()?;
+    let exe_path = resolve_pkexec_executable()?;
     for dev in device_paths {
         let mut cmd = Command::new("pkexec");
         cmd.arg(&exe_path)
@@ -844,7 +859,7 @@ fn run_pkexec_helper_write(
     app_bg: &slint::Weak<AppWindow>,
     state_bg: &Arc<Mutex<GuiState>>,
 ) -> Result<()> {
-    let exe_path = std::env::current_exe()?;
+    let exe_path = resolve_pkexec_executable()?;
     let mut cmd = Command::new("pkexec");
     cmd.arg(&exe_path)
         .arg("internal-write")

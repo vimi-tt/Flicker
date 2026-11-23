@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Flicker
+GenericName=USB Bootable Drive Creator
+Comment=Create Linux & Windows bootable USB drives or format drives cleanly
+Exec=flicker
+Icon=flicker
+Terminal=false
+Type=Application
+Categories=System;Utility;
+Keywords=usb;iso;bootable;rufus;flash;windows;linux;format;
+StartupNotify=true
+StartupWMClass=flicker
