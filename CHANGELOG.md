@@ -8,9 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Windows & macOS support
-- Custom persistence partition creation
+- Windows & macOS host support
 - Multiboot ISO support
+- Bad Blocks verification pass
+
+## [1.0.0] - 2026-11-23
+
+### Added
+- Material Design 3 Expressive UI (`ui/theme.slint`, `ui/components.slint`, `ui/appwindow.slint`) with Flame Ember tokens, light/dark mode, and new 512×512 app icon
+- Rufus-style workflow: Boot Selection (`ISO / Disk Image` vs `Format Only`), Partition Scheme (`GPT`/`MBR`), Filesystem (`NTFS`/`FAT32`/`exFAT`/`ext4`), and Volume Label
+- Windows 10/11 ISO Mode with GPT/NTFS layout, optional `UEFI:NTFS` boot partition, `7z`/loop extraction, and optional `autounattend.xml` (bypass TPM 2.0/Secure Boot/RAM & Microsoft Account)
+- Pure-Rust ISO9660/UDF/compression introspection (`flicker inspect`)
+- Streaming decompression for `.gz`, `.xz`, and `.zst` images
+- Linux Live `ext4` persistence partition (`casper-rw` + `persistence.conf`)
+- Automatic USB hotplug watcher (`udevadm` with `/sys/block` fallback)
+- Clean operation cancellation (`Ctrl+C` in CLI, Cancel button in GUI)
+- AppImage packaging (`packaging/appimage/build-appimage.sh`), FreeDesktop metadata, and GitHub Actions CI/Release workflows
+- Optional `gui` Cargo feature (`--no-default-features` for lightweight CLI-only builds)
+
+### Security & Fixes
+- Decoupled GUI from `root`: GUI runs unprivileged (Wayland-friendly) and elevates only `internal-write`/`internal-format` via `pkexec` (with `$APPIMAGE` support)
+- Real post-write verification with Linux kernel buffer/page cache invalidation (`BLKFLSBUF` + `POSIX_FADV_DONTNEED`)
+- Exact `/proc/mounts` device/partition matching (fixes substring collision bugs)
+- True parallel multi-device writing with periodic `sync_data()`
+- Fixed CLI `--device` flag, GUI confirmation dialog, state reset after completion, and removed unused dependencies (`thiserror`, `sysinfo`)
 
 ## [0.1.0-beta.2] - 2026-09-02
 
@@ -104,7 +125,8 @@ Please report any issues or suggestions on our GitHub Issues page!
 
 ---
 
-[Unreleased]: https://github.com/vimi-tt/Flicker/compare/v0.1.0-beta.2...HEAD
+[Unreleased]: https://github.com/vimi-tt/Flicker/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/vimi-tt/Flicker/compare/v0.1.0-beta.2...v1.0.0
 [0.1.0-beta.2]: https://github.com/vimi-tt/Flicker/compare/v0.1.0-beta.1...v0.1.0-beta.2
 [0.1.0-beta.1]: https://github.com/vimi-tt/Flicker/releases/tag/v0.1.0-beta.1
 [0.0.1]: https://github.com/vimi-tt/Flicker/releases/tag/v0.0.1

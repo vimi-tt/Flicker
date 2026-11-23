@@ -15,7 +15,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
 
 ARCH="${ARCH:-$(uname -m)}"
-VERSION="${VERSION:-$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)}"
+VERSION="${VERSION:-1.0}"
 APPDIR="$REPO_ROOT/target/AppDir"
 OUT_DIR="$REPO_ROOT/dist"
 OUT_FILE="$OUT_DIR/Flicker-${VERSION}-${ARCH}.AppImage"

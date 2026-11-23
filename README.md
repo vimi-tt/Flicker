@@ -40,7 +40,7 @@ cd Flicker
 
 ### 1. Launch the Graphical Interface (GUI)
 
-Flicker Beta 2 features a beautiful Material Design 3 interface. You can launch it from your desktop environment's application menu (after running `./install.sh`), or directly from the terminal:
+Flicker 1.0 features a Material Design 3 Expressive interface. You can launch it from your desktop environment's application menu (after running `./install.sh`), via AppImage, or directly from the terminal:
 
 ```bash
 flicker
