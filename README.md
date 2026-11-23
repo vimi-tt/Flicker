@@ -1,23 +1,25 @@
 # Flicker
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
 [![Platform](https://img.shields.io/badge/platform-Linux-blue.svg)](https://www.linux.org/)
 
-> A modern, fast, and safe USB bootable drive creator for Linux, written in Rust 🦀
+> A modern, fast, and safe raw ISO/IMG USB bootable drive creator for Linux, written in Rust 🦀
 
-Flicker is a Rufus alternative for Linux that allows you to easily create bootable USB drives from ISO images. Built with Rust for maximum safety, performance, and reliability.
+Flicker allows you to create bootable USB drives from Linux hybrid ISO and raw `.img` disk images (similar to BalenaEtcher / Fedora Media Writer), with both a Slint desktop GUI and a full-featured CLI.
+
+> **Scope note:** Flicker writes raw/hybrid images directly to block devices. Standard Windows installer ISOs (which are not hybrid images and require GPT/MBR partitioning + NTFS/FAT32 extraction) are not yet supported.
 
 ## ✨ Features
 
-- 🔍 **Smart USB Detection** - Automatically detects and lists USB devices
-- 🚀 **Fast Writing** - Optimized 4MB chunk writes for maximum performance
-- 🛡️ **Safety First** - Multiple validations and confirmations to prevent data loss
-- 📊 **Real-time Progress** - Beautiful progress bars with ETA and speed
-- ✅ **Data Verification** - Optional byte-by-byte verification after writing
-- 🔓 **Auto Unmount** - Automatically unmounts devices before writing
-- 💻 **CLI Interface** - Simple and intuitive command-line interface
-- ⚡ **Zero Dependencies** - Single binary, no external tools required
+- 🔍 **Smart USB Detection** - Detects USB drives (including external USB SSDs/HDDs) via sysfs bus inspection while filtering empty readers and optical drives
+- 🚀 **Parallel Multi-Device Writing** - Optimized 4MB chunk writes with periodic sync and true per-device parallel threads
+- 🛡️ **Safety First** - Exact `/proc/mounts` matching, mandatory unmounting, size checks, and explicit confirmations in both GUI and CLI
+- 🔐 **Least-Privilege GUI** - The graphical interface runs unprivileged (Wayland-friendly) and elevates only the write helper via `pkexec`
+- ✅ **Real Data Verification** - Post-write verification invalidates the Linux kernel buffer/page cache (`BLKFLSBUF` / `POSIX_FADV_DONTNEED`) so data is read back from physical USB flash
+- ⏹️ **Clean Cancellation** - Cancel writes safely from the GUI or with `Ctrl+C` in the CLI
+- 🔓 **Auto Unmount** - Automatically unmounts target partitions before writing
+- 💻 **CLI & Optional GUI** - Build with GUI + CLI by default, or `--no-default-features` for a lightweight CLI-only binary
 
 ## 📦 Installation
 
@@ -156,20 +158,25 @@ Flicker includes multiple safety checks to prevent accidental data loss:
 ```
 flicker/
 ├── src/
-│   ├── main.rs          # Entry point
+│   ├── main.rs          # Entry point & CLI orchestration
 │   ├── cli/             # CLI argument parsing
 │   │   └── mod.rs
-│   ├── usb/             # USB device detection
+│   ├── gui/             # Slint GUI & pkexec helper bridge
 │   │   └── mod.rs
-│   ├── writer/          # ISO writing logic
+│   ├── checksum/        # SHA256 / MD5 verification
 │   │   └── mod.rs
-│   └── utils.rs         # Helper functions
+│   ├── usb/             # USB bus & block device detection
+│   │   └── mod.rs
+│   ├── writer/          # Parallel ISO writer, cache invalidation & verification
+│   │   └── mod.rs
+│   └── utils.rs         # Validations, exact mount parsing & unmounting
 ├── ui/                  # Slint GUI declarations
 │   └── appwindow.slint
+├── .github/workflows/   # CI pipeline
 ├── docs/                # Documentation
 ├── Cargo.toml           # Project configuration
 ├── build.rs             # Slint build script
-├── install.sh           # Global installer script
+├── install.sh           # Installer (--cli-only, --uninstall)
 ├── CHANGELOG.md         # Release history
 ├── Flicker.png          # App icon
 └── README.md
@@ -178,26 +185,20 @@ flicker/
 ### Building from Source
 
 ```bash
-# Development build (faster compilation)
+# Development build (GUI + CLI)
 cargo build
 
-# Release build (optimized)
+# Release build (GUI + CLI)
 cargo build --release
+
+# Lightweight CLI-only build (no Slint/GUI dependencies)
+cargo build --release --no-default-features
 
 # Run tests
 cargo test
 
-# Run with logging
-RUST_LOG=debug cargo run -- list -v
-
-# Check code without building
-cargo check
-
-# Format code
-cargo fmt
-
 # Run linter
-cargo clippy
+cargo clippy --all-targets -- -D warnings
 ```
 
 ## 📋 Roadmap
