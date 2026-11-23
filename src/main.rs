@@ -1,5 +1,6 @@
 mod checksum;
 mod cli;
+mod format;
 #[cfg(feature = "gui")]
 mod gui;
 mod iso;
@@ -71,6 +72,16 @@ fn main() -> Result<()> {
                 println!("   Recommended Mode: {:?}", info.recommended_mode);
             }
 
+            Commands::Format {
+                device,
+                scheme,
+                fs,
+                label,
+                yes,
+            } => {
+                format_usb_cli(&device, &scheme, &fs, &label, yes)?;
+            }
+
             Commands::InternalWrite {
                 iso,
                 devices,
@@ -78,6 +89,15 @@ fn main() -> Result<()> {
                 resume,
             } => {
                 run_internal_write(&iso, &devices, verify, resume)?;
+            }
+
+            Commands::InternalFormat {
+                device,
+                scheme,
+                fs,
+                label,
+            } => {
+                run_internal_format(&device, &scheme, &fs, &label)?;
             }
         }
     } else {
@@ -174,6 +194,73 @@ fn run_internal_write(
     );
     let _ = emitter.join();
     res
+}
+
+fn run_internal_format(
+    device: &std::path::Path,
+    scheme_str: &str,
+    fs_str: &str,
+    label: &str,
+) -> Result<()> {
+    let scheme = format::PartitionScheme::parse(scheme_str)?;
+    let fs = format::FileSystem::parse(fs_str)?;
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let emitter = std::thread::spawn(move || {
+        let mut stdout = std::io::stdout().lock();
+        while let Ok(msg) = rx.recv() {
+            match msg {
+                writer::ProgressMsg::Progress(p) => {
+                    let _ = writeln!(stdout, "FLICKER_PROGRESS:{:.4}", p);
+                }
+                writer::ProgressMsg::Status(s) => {
+                    let _ = writeln!(stdout, "FLICKER_STATUS:{}", s.replace('\n', " "));
+                }
+                writer::ProgressMsg::Log(l) => {
+                    for part in l.lines() {
+                        let _ = writeln!(stdout, "FLICKER_LOG:{}", part);
+                    }
+                }
+            }
+            let _ = stdout.flush();
+        }
+    });
+
+    let res = format::format_device(device, scheme, fs, label, Some(tx));
+    let _ = emitter.join();
+    res
+}
+
+fn format_usb_cli(
+    device: &std::path::Path,
+    scheme_str: &str,
+    fs_str: &str,
+    label: &str,
+    skip_confirm: bool,
+) -> Result<()> {
+    use std::io;
+
+    utils::require_root_privileges()?;
+    utils::validate_device_path(device)?;
+    let scheme = format::PartitionScheme::parse(scheme_str)?;
+    let fs = format::FileSystem::parse(fs_str)?;
+
+    if !skip_confirm {
+        println!("\n⚠️  FINAL WARNING: This will COMPLETELY ERASE {}", device.display());
+        println!("   Scheme:     {}", scheme.label());
+        println!("   Filesystem: {}", fs.label());
+        println!("   Label:      {}", fs.sanitize_label(label));
+        print!("\n❓ Type 'yes' to confirm formatting: ");
+        io::stdout().flush()?;
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        if input.trim().to_lowercase() != "yes" {
+            println!("❌ Operation cancelled.");
+            return Ok(());
+        }
+    }
+
+    format::format_device(device, scheme, fs, label, None)
 }
 
 // List USB devices

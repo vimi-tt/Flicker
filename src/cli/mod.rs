@@ -62,6 +62,29 @@ pub enum Commands {
         iso: PathBuf,
     },
 
+    /// Partition and format a USB device (Rufus "Non-bootable" mode)
+    Format {
+        /// Target device (e.g., /dev/sdb)
+        #[arg(short = 'd', long = "device", value_name = "DEVICE")]
+        device: PathBuf,
+
+        /// Partition scheme (gpt or mbr)
+        #[arg(short = 's', long, default_value = "gpt")]
+        scheme: String,
+
+        /// Filesystem (fat32, ntfs, exfat, ext4)
+        #[arg(short = 'f', long, default_value = "fat32")]
+        fs: String,
+
+        /// Volume label
+        #[arg(short = 'l', long, default_value = "FLICKER_USB")]
+        label: String,
+
+        /// Skip confirmation prompt
+        #[arg(short = 'y', long)]
+        yes: bool,
+    },
+
     /// Internal privileged helper invoked by the GUI via pkexec
     #[command(hide = true)]
     InternalWrite {
@@ -76,6 +99,22 @@ pub enum Commands {
 
         #[arg(long)]
         resume: bool,
+    },
+
+    /// Internal privileged format helper invoked by the GUI via pkexec
+    #[command(hide = true)]
+    InternalFormat {
+        #[arg(short = 'd', long = "device", value_name = "DEVICE")]
+        device: PathBuf,
+
+        #[arg(long, default_value = "gpt")]
+        scheme: String,
+
+        #[arg(long, default_value = "fat32")]
+        fs: String,
+
+        #[arg(long, default_value = "FLICKER_USB")]
+        label: String,
     },
 }
 
