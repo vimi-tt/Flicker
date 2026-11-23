@@ -6,32 +6,54 @@ export struct DeviceItem {
 }
 
 export component AppWindow inherits Window {
-    title: "Flicker - USB Bootable Drive Creator";
+    title: "Flicker - Rufus-Style USB Creator for Linux";
     icon: @image-url("../Flicker.png");
-    preferred-width: 860px;
-    preferred-height: 600px;
-    min-width: 720px;
-    min-height: 520px;
+    preferred-width: 920px;
+    preferred-height: 660px;
+    min-width: 760px;
+    min-height: 560px;
 
     in-out property <[DeviceItem]> device_items: [];
     in property <bool> has_devices: false;
     in property <int> selected_device_count: 0;
 
+    // Boot selection: "Disk or ISO image" | "Non-bootable (Format only)"
+    in-out property <string> boot_selection: "Disk or ISO image";
+
     in-out property <string> selected_iso: "";
     in property <bool> has_valid_iso: false;
     in property <string> iso_size_label: "";
+    in property <string> detected_iso_summary: "";
+    in property <bool> is_windows_iso: false;
+    in property <bool> is_linux_hybrid_iso: false;
 
+    // Rufus-style Drive & Format Options
+    in-out property <string> write_mode: "Auto";
+    in-out property <string> partition_scheme: "GPT";
+    in-out property <string> file_system: "FAT32";
+    in-out property <string> volume_label: "FLICKER_USB";
+
+    // DD / Verification options
     in-out property <bool> opt_verify: true;
     in-out property <bool> opt_resume: false;
 
+    // Windows 11 customization options
+    in-out property <bool> win_bypass_tpm: true;
+    in-out property <bool> win_bypass_msa: true;
+
+    // Linux Live persistence (MiB)
+    in-out property <string> persistence_mb: "0";
+
+    // Checksum verifier
     in-out property <string> checksum_algo: "SHA256";
     in-out property <string> expected_checksum: "";
     in property <string> checksum_result: "";
     in property <bool> is_hashing: false;
 
+    // Operation state
     in-out property <bool> is_flashing: false;
     in-out property <bool> show_progress: false;
-    in-out property <string> status_text: "Ready to flash";
+    in-out property <string> status_text: "Ready";
     in property <float> progress_value: 0.0;
     in property <string> terminal_logs: "";
 
@@ -42,63 +64,29 @@ export component AppWindow inherits Window {
     callback refresh_devices();
     callback toggle_device(int);
     callback calculate_checksum(string, string);
-    callback request_flash();
-    callback confirm_flash(bool, bool);
-    callback cancel_flash();
+    callback request_action();
+    callback confirm_action();
+    callback cancel_action();
     callback reset_progress();
 
     HorizontalBox {
-        padding: 20px;
-        spacing: 20px;
+        padding: 18px;
+        spacing: 18px;
 
-        // Left Column: Source, Target Devices, Action
+        // Left Column: Device, Boot Selection, Image, Primary Button
         VerticalBox {
             horizontal-stretch: 1;
-            min-width: 300px;
-            spacing: 16px;
+            min-width: 320px;
+            spacing: 12px;
 
             Text {
                 text: "Flicker";
-                font-size: 28px;
+                font-size: 26px;
                 font-weight: 700;
                 horizontal-alignment: center;
             }
 
-            // 1. Source Image
-            VerticalBox {
-                spacing: 6px;
-                padding: 0px;
-
-                Text {
-                    text: "1. Source Image (.iso / .img)";
-                    font-weight: 600;
-                }
-
-                HorizontalBox {
-                    padding: 0px;
-                    spacing: 8px;
-
-                    LineEdit {
-                        text: root.has_valid_iso ? root.selected_iso : "No image selected";
-                        read-only: true;
-                        horizontal-stretch: 1;
-                    }
-
-                    Button {
-                        text: "Browse...";
-                        enabled: !root.is_flashing && !root.is_hashing;
-                        clicked => { root.select_iso(); }
-                    }
-                }
-
-                if root.iso_size_label != "": Text {
-                    text: root.iso_size_label;
-                    font-size: 12px;
-                    opacity: 0.75;
-                }
-            }
-
-            // 2. Target Device(s)
+            // 1. Target USB Device(s)
             VerticalBox {
                 spacing: 6px;
                 padding: 0px;
@@ -109,7 +97,7 @@ export component AppWindow inherits Window {
                     spacing: 8px;
 
                     Text {
-                        text: "2. Target USB Device(s)";
+                        text: "1. Device (auto-detects USB hotplug)";
                         font-weight: 600;
                         vertical-alignment: center;
                         horizontal-stretch: 1;
@@ -128,10 +116,10 @@ export component AppWindow inherits Window {
                     border-radius: 8px;
                     background: Palette.alternate-background;
                     vertical-stretch: 1;
-                    min-height: 120px;
+                    min-height: 110px;
 
                     if !root.has_devices: Text {
-                        text: "No USB storage devices found.\nConnect a USB drive and click Refresh.";
+                        text: "No USB storage devices found.\nPlug in a USB drive (auto-refreshes) or click Refresh.";
                         horizontal-alignment: center;
                         vertical-alignment: center;
                         wrap: word-wrap;
@@ -159,23 +147,95 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // Primary Action Button / Cancel / Reset
+            // 2. Boot Selection (Rufus-style)
+            VerticalBox {
+                spacing: 6px;
+                padding: 0px;
+
+                Text {
+                    text: "2. Boot Selection";
+                    font-weight: 600;
+                }
+
+                ComboBox {
+                    model: ["Disk or ISO image", "Non-bootable (Format only)"];
+                    current-value <=> root.boot_selection;
+                    enabled: !root.is_flashing;
+                }
+            }
+
+            // 3. Source Image (visible when Disk or ISO image is selected)
+            if root.boot_selection == "Disk or ISO image": VerticalBox {
+                spacing: 6px;
+                padding: 0px;
+
+                Text {
+                    text: "3. Image File (.iso / .img / .gz / .xz / .zst)";
+                    font-weight: 600;
+                }
+
+                HorizontalBox {
+                    padding: 0px;
+                    spacing: 8px;
+
+                    LineEdit {
+                        text: root.has_valid_iso ? root.selected_iso : "No image selected";
+                        read-only: true;
+                        horizontal-stretch: 1;
+                    }
+
+                    Button {
+                        text: "SELECT";
+                        enabled: !root.is_flashing && !root.is_hashing;
+                        clicked => { root.select_iso(); }
+                    }
+                }
+
+                if root.iso_size_label != "": Text {
+                    text: root.iso_size_label;
+                    font-size: 12px;
+                    opacity: 0.8;
+                }
+
+                if root.detected_iso_summary != "": Rectangle {
+                    background: Palette.alternate-background;
+                    border-width: 1px;
+                    border-color: Palette.border;
+                    border-radius: 6px;
+
+                    HorizontalBox {
+                        padding: 8px;
+                        Text {
+                            text: "🔎 " + root.detected_iso_summary;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+
+            // Action Button / Cancel / Reset
             if !root.is_flashing && !root.show_progress: Button {
-                text: root.selected_device_count > 1 ? "FLASH TO " + root.selected_device_count + " DEVICES" : "FLASH!";
+                text: root.boot_selection == "Non-bootable (Format only)"
+                    ? "FORMAT USB"
+                    : (root.selected_device_count > 1 ? "START (" + root.selected_device_count + " DEVICES)" : "START");
                 primary: true;
                 height: 44px;
-                enabled: root.has_valid_iso && root.has_devices && root.selected_device_count > 0 && !root.is_hashing;
-                clicked => { root.request_flash(); }
+                enabled: root.has_devices
+                    && root.selected_device_count > 0
+                    && !root.is_hashing
+                    && (root.boot_selection == "Non-bootable (Format only)" || root.has_valid_iso);
+                clicked => { root.request_action(); }
             }
 
             if root.is_flashing: Button {
-                text: "Cancel Write";
+                text: "CANCEL";
                 height: 44px;
-                clicked => { root.cancel_flash(); }
+                clicked => { root.cancel_action(); }
             }
 
             if !root.is_flashing && root.show_progress: Button {
-                text: "Flash Another / Reset";
+                text: "Ready / Start Another";
                 primary: true;
                 height: 44px;
                 clicked => { root.reset_progress(); }
@@ -188,27 +248,146 @@ export component AppWindow inherits Window {
             background: Palette.border;
         }
 
-        // Right Column: Options, Checksum, Logs, Progress
+        // Right Column: Rufus Options, Checksum, Activity Log, Progress
         VerticalBox {
-            horizontal-stretch: 1.2;
-            min-width: 340px;
-            spacing: 12px;
+            horizontal-stretch: 1.25;
+            min-width: 360px;
+            spacing: 10px;
 
             Text {
-                text: "Options";
+                text: "Drive & Write Options";
                 font-weight: 600;
             }
 
-            CheckBox {
-                text: "Verify data after writing (reads back from USB)";
-                checked <=> root.opt_verify;
-                enabled: !root.is_flashing;
+            // Write mode selector (when flashing an image)
+            if root.boot_selection == "Disk or ISO image": HorizontalBox {
+                padding: 0px;
+                spacing: 8px;
+
+                Text {
+                    text: "Write Mode:";
+                    vertical-alignment: center;
+                    width: 115px;
+                }
+
+                ComboBox {
+                    model: ["Auto", "DD (Raw)", "ISO (Windows / Extract)"];
+                    current-value <=> root.write_mode;
+                    enabled: !root.is_flashing;
+                    horizontal-stretch: 1;
+                }
             }
 
-            CheckBox {
-                text: "Resume interrupted write (skip identical blocks)";
-                checked <=> root.opt_resume;
-                enabled: !root.is_flashing;
+            // Partition Scheme + Filesystem + Volume Label (for Format mode or ISO Mode)
+            if root.boot_selection == "Non-bootable (Format only)"
+                || root.write_mode == "ISO (Windows / Extract)"
+                || (root.write_mode == "Auto" && root.is_windows_iso): VerticalBox {
+                padding: 0px;
+                spacing: 8px;
+
+                HorizontalBox {
+                    padding: 0px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "Partition / FS:";
+                        vertical-alignment: center;
+                        width: 115px;
+                    }
+
+                    ComboBox {
+                        model: ["GPT", "MBR"];
+                        current-value <=> root.partition_scheme;
+                        enabled: !root.is_flashing;
+                        width: 90px;
+                    }
+
+                    ComboBox {
+                        model: ["NTFS", "FAT32", "exFAT", "ext4"];
+                        current-value <=> root.file_system;
+                        enabled: !root.is_flashing;
+                        horizontal-stretch: 1;
+                    }
+                }
+
+                HorizontalBox {
+                    padding: 0px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "Volume Label:";
+                        vertical-alignment: center;
+                        width: 115px;
+                    }
+
+                    LineEdit {
+                        text <=> root.volume_label;
+                        enabled: !root.is_flashing;
+                        horizontal-stretch: 1;
+                    }
+                }
+            }
+
+            // Windows 11 Customization (Rufus-style)
+            if root.boot_selection == "Disk or ISO image"
+                && (root.is_windows_iso || root.write_mode == "ISO (Windows / Extract)"): VerticalBox {
+                padding: 0px;
+                spacing: 4px;
+
+                Text {
+                    text: "Windows Customization (autounattend.xml)";
+                    font-weight: 600;
+                    font-size: 13px;
+                }
+
+                CheckBox {
+                    text: "Bypass TPM 2.0, Secure Boot & 4GB RAM requirements";
+                    checked <=> root.win_bypass_tpm;
+                    enabled: !root.is_flashing;
+                }
+
+                CheckBox {
+                    text: "Bypass Microsoft Account (enable local account)";
+                    checked <=> root.win_bypass_msa;
+                    enabled: !root.is_flashing;
+                }
+            }
+
+            // DD Mode Options & Linux Persistence
+            if root.boot_selection == "Disk or ISO image"
+                && (root.write_mode == "DD (Raw)" || (root.write_mode == "Auto" && !root.is_windows_iso)): VerticalBox {
+                padding: 0px;
+                spacing: 4px;
+
+                CheckBox {
+                    text: "Verify data after writing (bypasses OS page cache)";
+                    checked <=> root.opt_verify;
+                    enabled: !root.is_flashing;
+                }
+
+                CheckBox {
+                    text: "Resume interrupted write (skip identical blocks)";
+                    checked <=> root.opt_resume;
+                    enabled: !root.is_flashing;
+                }
+
+                if root.is_linux_hybrid_iso: HorizontalBox {
+                    padding: 0px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "Persistence (MB):";
+                        vertical-alignment: center;
+                        width: 115px;
+                    }
+
+                    LineEdit {
+                        text <=> root.persistence_mb;
+                        placeholder-text: "0 = disabled (e.g. 4096)";
+                        enabled: !root.is_flashing;
+                        horizontal-stretch: 1;
+                    }
+                }
             }
 
             Rectangle {
@@ -217,7 +396,7 @@ export component AppWindow inherits Window {
             }
 
             // ISO Checksum Verification
-            VerticalBox {
+            if root.boot_selection == "Disk or ISO image": VerticalBox {
                 padding: 0px;
                 spacing: 6px;
 
@@ -234,7 +413,7 @@ export component AppWindow inherits Window {
                         model: ["SHA256", "MD5"];
                         current-value <=> root.checksum_algo;
                         enabled: !root.is_flashing && !root.is_hashing;
-                        width: 100px;
+                        width: 96px;
                     }
 
                     LineEdit {
@@ -245,7 +424,7 @@ export component AppWindow inherits Window {
                     }
 
                     Button {
-                        text: root.is_hashing ? "Hashing..." : "Verify";
+                        text: root.is_hashing ? "..." : "Verify";
                         enabled: root.has_valid_iso && !root.is_flashing && !root.is_hashing;
                         clicked => { root.calculate_checksum(root.checksum_algo, root.expected_checksum); }
                     }
@@ -256,11 +435,6 @@ export component AppWindow inherits Window {
                     font-size: 12px;
                     wrap: word-wrap;
                 }
-            }
-
-            Rectangle {
-                height: 1px;
-                background: Palette.border;
             }
 
             Text {
@@ -280,11 +454,11 @@ export component AppWindow inherits Window {
                 border-width: 1px;
                 border-color: Palette.border;
                 border-radius: 10px;
-                height: 68px;
+                height: 66px;
 
                 VerticalBox {
-                    padding: 12px;
-                    spacing: 8px;
+                    padding: 10px;
+                    spacing: 6px;
 
                     Text {
                         text: root.status_text;
@@ -308,11 +482,11 @@ export component AppWindow inherits Window {
         height: 100%;
         background: #00000099;
 
-        TouchArea {} // Block clicks behind overlay
+        TouchArea {}
 
         Rectangle {
-            width: min(480px, parent.width - 48px);
-            height: 260px;
+            width: min(500px, parent.width - 48px);
+            height: 280px;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
             background: Palette.background;
@@ -347,11 +521,11 @@ export component AppWindow inherits Window {
                     }
 
                     Button {
-                        text: "Erase & Flash";
+                        text: "OK — Erase & Proceed";
                         primary: true;
                         clicked => {
                             root.show_confirm_dialog = false;
-                            root.confirm_flash(root.opt_verify, root.opt_resume);
+                            root.confirm_action();
                         }
                     }
                 }

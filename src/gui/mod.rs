@@ -9,7 +9,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::checksum::{calculate_checksum_with_progress, ChecksumAlgorithm};
+use crate::format::{FileSystem, PartitionScheme};
+use crate::iso::{inspect_image, ImageKind, WriteMode};
 use crate::usb::UsbDevice;
+use crate::windows::WindowsOptions;
 
 slint::include_modules!();
 
@@ -61,6 +64,52 @@ impl GuiState {
             .zip(self.selected.iter())
             .filter_map(|(d, &sel)| if sel { Some(d.clone()) } else { None })
             .collect()
+    }
+}
+
+#[derive(Clone)]
+struct ActionConfig {
+    is_format_only: bool,
+    mode_arg: String,
+    scheme_arg: String,
+    fs_arg: String,
+    label: String,
+    verify: bool,
+    resume: bool,
+    win_bypass_tpm: bool,
+    win_bypass_msa: bool,
+    persistence_mb: u64,
+}
+
+fn read_action_config(app: &AppWindow) -> ActionConfig {
+    let is_format_only = app.get_boot_selection().as_str() == "Non-bootable (Format only)";
+    let mode_arg = match app.get_write_mode().as_str() {
+        "DD (Raw)" => "dd",
+        "ISO (Windows / Extract)" => "iso",
+        _ => "auto",
+    }
+    .to_string();
+
+    let scheme_arg = app.get_partition_scheme().to_string().to_ascii_lowercase();
+    let fs_arg = app.get_file_system().to_string().to_ascii_lowercase();
+    let label = app.get_volume_label().to_string();
+    let persistence_mb = app
+        .get_persistence_mb()
+        .trim()
+        .parse::<u64>()
+        .unwrap_or(0);
+
+    ActionConfig {
+        is_format_only,
+        mode_arg,
+        scheme_arg,
+        fs_arg,
+        label,
+        verify: app.get_opt_verify(),
+        resume: app.get_opt_resume(),
+        win_bypass_tpm: app.get_win_bypass_tpm(),
+        win_bypass_msa: app.get_win_bypass_msa(),
+        persistence_mb,
     }
 }
 
@@ -155,7 +204,7 @@ pub fn run_gui() -> Result<()> {
         });
     }
 
-    // Select ISO or IMG file
+    // Select ISO/IMG file and auto-inspect it (Rufus-style smart defaults)
     {
         let app_weak = app_weak.clone();
         let state = Arc::clone(&state);
@@ -168,6 +217,8 @@ pub fn run_gui() -> Result<()> {
                     .map(|m| format!("Image size: {}", crate::utils::format_size(m.len())))
                     .unwrap_or_default();
 
+                let inspection = inspect_image(&path).ok();
+
                 if let Ok(mut st) = state.lock() {
                     st.iso_path = Some(path.clone());
                 }
@@ -177,6 +228,26 @@ pub fn run_gui() -> Result<()> {
                     app.set_has_valid_iso(true);
                     app.set_iso_size_label(size_str.into());
                     app.set_checksum_result("".into());
+
+                    if let Some(info) = inspection {
+                        let is_win = info.kind == ImageKind::WindowsIso;
+                        let is_linux = info.kind == ImageKind::LinuxHybridIso;
+                        app.set_detected_iso_summary(info.summary.into());
+                        app.set_is_windows_iso(is_win);
+                        app.set_is_linux_hybrid_iso(is_linux);
+                        app.set_volume_label(info.volume_label.into());
+                        app.set_write_mode("Auto".into());
+                        if is_win {
+                            app.set_partition_scheme("GPT".into());
+                            app.set_file_system("NTFS".into());
+                        } else {
+                            app.set_file_system("FAT32".into());
+                        }
+                    } else {
+                        app.set_detected_iso_summary("".into());
+                        app.set_is_windows_iso(false);
+                        app.set_is_linux_hybrid_iso(false);
+                    }
                 }
             }
         });
@@ -235,57 +306,23 @@ pub fn run_gui() -> Result<()> {
         });
     }
 
-    // Request Flash -> validate inputs & open confirmation dialog
+    // Request Action -> pre-flight checks & open confirmation dialog
     {
         let app_weak = app_weak.clone();
         let state = Arc::clone(&state);
-        app.on_request_flash(move || {
+        app.on_request_action(move || {
             let Some(app) = app_weak.upgrade() else {
                 return;
             };
 
+            let cfg = read_action_config(&app);
             let (iso_path, targets) = match state.lock() {
                 Ok(st) => (st.iso_path.clone(), st.selected_devices()),
                 Err(_) => return,
             };
 
-            let Some(iso_path) = iso_path else {
-                return;
-            };
             if targets.is_empty() {
                 return;
-            }
-
-            // Pre-flight validation before showing confirmation dialog
-            if let Err(e) = crate::utils::validate_iso_file(&iso_path) {
-                app.set_show_progress(true);
-                app.set_status_text(format!("❌ {}", e).into());
-                return;
-            }
-
-            let iso_size = match std::fs::metadata(&iso_path) {
-                Ok(m) => m.len(),
-                Err(e) => {
-                    app.set_show_progress(true);
-                    app.set_status_text(format!("❌ Failed to read ISO metadata: {}", e).into());
-                    return;
-                }
-            };
-
-            for dev in &targets {
-                if iso_size > dev.size {
-                    app.set_show_progress(true);
-                    app.set_status_text(
-                        format!(
-                            "❌ ISO ({}) exceeds /dev/{} ({})",
-                            crate::utils::format_size(iso_size),
-                            dev.name,
-                            crate::utils::format_size(dev.size)
-                        )
-                        .into(),
-                    );
-                    return;
-                }
             }
 
             let target_lines: Vec<String> = targets
@@ -300,14 +337,60 @@ pub fn run_gui() -> Result<()> {
                 })
                 .collect();
 
+            if cfg.is_format_only {
+                let summary = format!(
+                    "ALL DATA on the following device(s) will be permanently erased and formatted:\n\n{}\n\nScheme: {}  |  Filesystem: {}  |  Label: {}",
+                    target_lines.join("\n"),
+                    cfg.scheme_arg.to_uppercase(),
+                    cfg.fs_arg.to_uppercase(),
+                    cfg.label
+                );
+                app.set_confirm_summary(summary.into());
+                app.set_show_confirm_dialog(true);
+                return;
+            }
+
+            let Some(iso_path) = iso_path else {
+                return;
+            };
+
+            if let Err(e) = crate::utils::validate_iso_file(&iso_path) {
+                app.set_show_progress(true);
+                app.set_status_text(format!("❌ {}", e).into());
+                return;
+            }
+
+            let iso_size = match std::fs::metadata(&iso_path) {
+                Ok(m) => m.len(),
+                Err(e) => {
+                    app.set_show_progress(true);
+                    app.set_status_text(format!("❌ Failed to read image metadata: {}", e).into());
+                    return;
+                }
+            };
+
+            for dev in &targets {
+                if iso_size > dev.size {
+                    app.set_show_progress(true);
+                    app.set_status_text(
+                        format!(
+                            "❌ Image ({}) exceeds /dev/{} ({})",
+                            crate::utils::format_size(iso_size),
+                            dev.name,
+                            crate::utils::format_size(dev.size)
+                        )
+                        .into(),
+                    );
+                    return;
+                }
+            }
+
             let summary = format!(
-                "ALL DATA on the following device(s) will be permanently erased:\n\n{}\n\nImage: {} ({})",
+                "ALL DATA on the following device(s) will be permanently erased:\n\n{}\n\nImage: {} ({})\nMode: {}",
                 target_lines.join("\n"),
-                iso_path
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy(),
+                iso_path.file_name().unwrap_or_default().to_string_lossy(),
                 crate::utils::format_size(iso_size),
+                app.get_write_mode()
             );
 
             app.set_confirm_summary(summary.into());
@@ -315,15 +398,16 @@ pub fn run_gui() -> Result<()> {
         });
     }
 
-    // Confirm Flash -> execute directly if root, or via privileged helper (`pkexec`)
+    // Confirm Action -> run directly if root, or via privileged pkexec helper
     {
         let app_weak = app_weak.clone();
         let state = Arc::clone(&state);
-        app.on_confirm_flash(move |verify, resume| {
+        app.on_confirm_action(move || {
             let Some(app) = app_weak.upgrade() else {
                 return;
             };
 
+            let cfg = read_action_config(&app);
             let (iso_path, targets) = match state.lock() {
                 Ok(mut st) => {
                     st.clear_logs();
@@ -332,10 +416,10 @@ pub fn run_gui() -> Result<()> {
                 Err(_) => return,
             };
 
-            let Some(iso_path) = iso_path else {
-                return;
-            };
             if targets.is_empty() {
+                return;
+            }
+            if !cfg.is_format_only && iso_path.is_none() {
                 return;
             }
 
@@ -343,7 +427,14 @@ pub fn run_gui() -> Result<()> {
 
             app.set_is_flashing(true);
             app.set_show_progress(true);
-            app.set_status_text("Starting write process...".into());
+            app.set_status_text(
+                if cfg.is_format_only {
+                    "Starting format..."
+                } else {
+                    "Starting write process..."
+                }
+                .into(),
+            );
             app.set_progress_value(0.0);
             app.set_terminal_logs("".into());
 
@@ -357,25 +448,26 @@ pub fn run_gui() -> Result<()> {
             let state_bg = Arc::clone(&state);
 
             std::thread::spawn(move || {
-                let res = if crate::utils::check_root_privileges() {
-                    run_direct_write(
-                        &iso_path,
-                        &device_paths,
-                        verify,
-                        resume,
-                        &app_bg,
-                        &state_bg,
-                        cancel_flag,
-                    )
+                let res = if cfg.is_format_only {
+                    if crate::utils::check_root_privileges() {
+                        run_direct_format(&device_paths, &cfg, &app_bg, &state_bg)
+                    } else {
+                        run_pkexec_helper_format(&device_paths, &cfg, &app_bg, &state_bg)
+                    }
                 } else {
-                    run_pkexec_helper_write(
-                        &iso_path,
-                        &device_paths,
-                        verify,
-                        resume,
-                        &app_bg,
-                        &state_bg,
-                    )
+                    let iso_p = iso_path.unwrap();
+                    if crate::utils::check_root_privileges() {
+                        run_direct_write(
+                            &iso_p,
+                            &device_paths,
+                            &cfg,
+                            &app_bg,
+                            &state_bg,
+                            cancel_flag,
+                        )
+                    } else {
+                        run_pkexec_helper_write(&iso_p, &device_paths, &cfg, &app_bg, &state_bg)
+                    }
                 };
 
                 if let Ok(mut st) = state_bg.lock() {
@@ -390,7 +482,14 @@ pub fn run_gui() -> Result<()> {
                         match res {
                             Ok(()) => {
                                 app.set_progress_value(1.0);
-                                app.set_status_text("✅ Write completed successfully!".into());
+                                app.set_status_text(
+                                    if cfg.is_format_only {
+                                        "✅ Format completed successfully!"
+                                    } else {
+                                        "✅ Write completed successfully!"
+                                    }
+                                    .into(),
+                                );
                             }
                             Err(e) => {
                                 app.set_status_text(format!("❌ {}", e).into());
@@ -407,11 +506,11 @@ pub fn run_gui() -> Result<()> {
         });
     }
 
-    // Cancel Flash
+    // Cancel Action
     {
         let app_weak = app_weak.clone();
         let state = Arc::clone(&state);
-        app.on_cancel_flash(move || {
+        app.on_cancel_action(move || {
             if let Ok(mut st) = state.lock() {
                 if let Some(flag) = &st.cancel_flag {
                     flag.store(true, Ordering::SeqCst);
@@ -422,12 +521,12 @@ pub fn run_gui() -> Result<()> {
                 }
             }
             if let Some(app) = app_weak.upgrade() {
-                app.set_status_text("Cancelling write safely...".into());
+                app.set_status_text("Cancelling operation safely...".into());
             }
         });
     }
 
-    // Reset progress panel so user can flash again without restarting the app
+    // Reset progress panel
     {
         let app_weak = app_weak.clone();
         let state = Arc::clone(&state);
@@ -435,7 +534,7 @@ pub fn run_gui() -> Result<()> {
             if let Some(app) = app_weak.upgrade() {
                 app.set_show_progress(false);
                 app.set_progress_value(0.0);
-                app.set_status_text("Ready to flash".into());
+                app.set_status_text("Ready".into());
                 refresh_device_list(&app, &state);
             }
         });
@@ -458,31 +557,14 @@ fn push_gui_log(app_weak: &slint::Weak<AppWindow>, state: &Arc<Mutex<GuiState>>,
     });
 }
 
-fn run_direct_write(
-    iso_path: &std::path::Path,
-    device_paths: &[PathBuf],
-    verify: bool,
-    resume: bool,
+fn spawn_progress_bridge(
+    rx: std::sync::mpsc::Receiver<crate::writer::ProgressMsg>,
     app_bg: &slint::Weak<AppWindow>,
     state_bg: &Arc<Mutex<GuiState>>,
-    cancel_flag: Arc<AtomicBool>,
-) -> Result<()> {
-    // Validate and unmount every target device (never ignore unmount errors!)
-    crate::utils::validate_iso_file(iso_path)?;
-    for dev in device_paths {
-        crate::utils::validate_device_path(dev)?;
-        let dev_name = dev
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| anyhow::anyhow!("Invalid device path: {:?}", dev))?;
-        crate::utils::unmount_device(dev_name)?;
-    }
-
-    let (tx, rx) = std::sync::mpsc::channel();
+) -> std::thread::JoinHandle<()> {
     let app_rx = app_bg.clone();
     let state_rx = Arc::clone(state_bg);
-
-    let rx_thread = std::thread::spawn(move || {
+    std::thread::spawn(move || {
         while let Ok(msg) = rx.recv() {
             match msg {
                 crate::writer::ProgressMsg::Progress(p) => {
@@ -506,30 +588,127 @@ fn run_direct_write(
                 }
             }
         }
-    });
+    })
+}
 
-    let res = crate::writer::write_iso_to_devices(
-        iso_path,
-        device_paths,
-        verify,
-        resume,
-        Some(tx),
-        Some(cancel_flag),
-    );
+fn run_direct_format(
+    device_paths: &[PathBuf],
+    cfg: &ActionConfig,
+    app_bg: &slint::Weak<AppWindow>,
+    state_bg: &Arc<Mutex<GuiState>>,
+) -> Result<()> {
+    let scheme = PartitionScheme::parse(&cfg.scheme_arg)?;
+    let fs = FileSystem::parse(&cfg.fs_arg)?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    let rx_thread = spawn_progress_bridge(rx, app_bg, state_bg);
+
+    let mut res = Ok(());
+    for dev in device_paths {
+        if let Err(e) = crate::format::format_device(dev, scheme, fs, &cfg.label, Some(tx.clone()))
+        {
+            res = Err(e);
+            break;
+        }
+    }
+    drop(tx);
     let _ = rx_thread.join();
     res
 }
 
-fn run_pkexec_helper_write(
+fn run_direct_write(
     iso_path: &std::path::Path,
     device_paths: &[PathBuf],
-    verify: bool,
-    resume: bool,
+    cfg: &ActionConfig,
+    app_bg: &slint::Weak<AppWindow>,
+    state_bg: &Arc<Mutex<GuiState>>,
+    cancel_flag: Arc<AtomicBool>,
+) -> Result<()> {
+    crate::utils::validate_iso_file(iso_path)?;
+    let iso_info = inspect_image(iso_path)?;
+    let effective_mode = match WriteMode::parse(&cfg.mode_arg)? {
+        WriteMode::Auto => iso_info.recommended_mode,
+        other => other,
+    };
+
+    for dev in device_paths {
+        crate::utils::validate_device_path(dev)?;
+        let dev_name = dev
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| anyhow::anyhow!("Invalid device path: {:?}", dev))?;
+        crate::utils::unmount_device(dev_name)?;
+    }
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let rx_thread = spawn_progress_bridge(rx, app_bg, state_bg);
+
+    let res = match effective_mode {
+        WriteMode::Iso => {
+            let scheme = PartitionScheme::parse(&cfg.scheme_arg)?;
+            let fs = FileSystem::parse(&cfg.fs_arg)?;
+            let win_opts = WindowsOptions {
+                bypass_tpm_ram: cfg.win_bypass_tpm,
+                bypass_msa: cfg.win_bypass_msa,
+                disable_telemetry: cfg.win_bypass_tpm || cfg.win_bypass_msa,
+            };
+            let label = if cfg.label.trim().is_empty() {
+                iso_info.volume_label.as_str()
+            } else {
+                cfg.label.as_str()
+            };
+            let mut last = Ok(());
+            for dev in device_paths {
+                if let Err(e) = crate::windows::write_iso_mode(
+                    iso_path,
+                    dev,
+                    scheme,
+                    fs,
+                    label,
+                    &win_opts,
+                    Some(tx.clone()),
+                    Some(Arc::clone(&cancel_flag)),
+                ) {
+                    last = Err(e);
+                    break;
+                }
+            }
+            drop(tx);
+            last
+        }
+        WriteMode::Dd | WriteMode::Auto => {
+            let iso_size = std::fs::metadata(iso_path)?.len();
+            let w_res = crate::writer::write_iso_to_devices(
+                iso_path,
+                device_paths,
+                cfg.verify,
+                cfg.resume,
+                Some(tx.clone()),
+                Some(Arc::clone(&cancel_flag)),
+            );
+            if w_res.is_ok() && cfg.persistence_mb > 0 {
+                for dev in device_paths {
+                    crate::windows::create_persistence_partition(
+                        dev,
+                        iso_size,
+                        cfg.persistence_mb,
+                        Some(tx.clone()),
+                    )?;
+                }
+            }
+            drop(tx);
+            w_res
+        }
+    };
+
+    let _ = rx_thread.join();
+    res
+}
+
+fn stream_pkexec_command(
+    mut cmd: Command,
     app_bg: &slint::Weak<AppWindow>,
     state_bg: &Arc<Mutex<GuiState>>,
 ) -> Result<()> {
-    let exe_path = std::env::current_exe()?;
-
     push_gui_log(
         app_bg,
         state_bg,
@@ -542,23 +721,6 @@ fn run_pkexec_helper_write(
                 app.set_status_text("Waiting for authentication (pkexec)...".into());
             }
         });
-    }
-
-    let mut cmd = Command::new("pkexec");
-    cmd.arg(&exe_path)
-        .arg("internal-write")
-        .arg("--iso")
-        .arg(iso_path)
-        .arg("--device");
-
-    for dev in device_paths {
-        cmd.arg(dev);
-    }
-    if verify {
-        cmd.arg("--verify");
-    }
-    if resume {
-        cmd.arg("--resume");
     }
 
     cmd.stdin(Stdio::piped())
@@ -630,9 +792,80 @@ fn run_pkexec_helper_write(
     } else {
         let detail = stderr_output.trim();
         if detail.is_empty() {
-            anyhow::bail!("Privileged write helper exited with status {}", status);
+            anyhow::bail!("Privileged helper exited with status {}", status);
         } else {
             anyhow::bail!("{}", detail);
         }
     }
+}
+
+fn run_pkexec_helper_format(
+    device_paths: &[PathBuf],
+    cfg: &ActionConfig,
+    app_bg: &slint::Weak<AppWindow>,
+    state_bg: &Arc<Mutex<GuiState>>,
+) -> Result<()> {
+    let exe_path = std::env::current_exe()?;
+    for dev in device_paths {
+        let mut cmd = Command::new("pkexec");
+        cmd.arg(&exe_path)
+            .arg("internal-format")
+            .arg("--device")
+            .arg(dev)
+            .arg("--scheme")
+            .arg(&cfg.scheme_arg)
+            .arg("--fs")
+            .arg(&cfg.fs_arg)
+            .arg("--label")
+            .arg(&cfg.label);
+        stream_pkexec_command(cmd, app_bg, state_bg)?;
+    }
+    Ok(())
+}
+
+fn run_pkexec_helper_write(
+    iso_path: &std::path::Path,
+    device_paths: &[PathBuf],
+    cfg: &ActionConfig,
+    app_bg: &slint::Weak<AppWindow>,
+    state_bg: &Arc<Mutex<GuiState>>,
+) -> Result<()> {
+    let exe_path = std::env::current_exe()?;
+    let mut cmd = Command::new("pkexec");
+    cmd.arg(&exe_path)
+        .arg("internal-write")
+        .arg("--iso")
+        .arg(iso_path)
+        .arg("--device");
+
+    for dev in device_paths {
+        cmd.arg(dev);
+    }
+    cmd.arg("--mode")
+        .arg(&cfg.mode_arg)
+        .arg("--scheme")
+        .arg(&cfg.scheme_arg)
+        .arg("--fs")
+        .arg(&cfg.fs_arg);
+
+    if !cfg.label.trim().is_empty() {
+        cmd.arg("--label").arg(&cfg.label);
+    }
+    if cfg.verify {
+        cmd.arg("--verify");
+    }
+    if cfg.resume {
+        cmd.arg("--resume");
+    }
+    if cfg.win_bypass_tpm {
+        cmd.arg("--win-bypass-tpm");
+    }
+    if cfg.win_bypass_msa {
+        cmd.arg("--win-bypass-msa");
+    }
+    if cfg.persistence_mb > 0 {
+        cmd.arg("--persistence").arg(cfg.persistence_mb.to_string());
+    }
+
+    stream_pkexec_command(cmd, app_bg, state_bg)
 }

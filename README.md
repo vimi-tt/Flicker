@@ -4,21 +4,21 @@
 [![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
 [![Platform](https://img.shields.io/badge/platform-Linux-blue.svg)](https://www.linux.org/)
 
-> A modern, fast, and safe raw ISO/IMG USB bootable drive creator for Linux, written in Rust 🦀
+> A modern, fast, and safe Rufus-style USB bootable drive creator for Linux, written in Rust 🦀
 
-Flicker allows you to create bootable USB drives from Linux hybrid ISO and raw `.img` disk images (similar to BalenaEtcher / Fedora Media Writer), with both a Slint desktop GUI and a full-featured CLI.
-
-> **Scope note:** Flicker writes raw/hybrid images directly to block devices. Standard Windows installer ISOs (which are not hybrid images and require GPT/MBR partitioning + NTFS/FAT32 extraction) are not yet supported.
+Flicker lets you create bootable USB drives on Linux from **Linux hybrid ISOs**, **Windows 10/11 installer ISOs**, and **raw/compressed disk images** (`.iso`, `.img`, `.gz`, `.xz`, `.zst`), or format USB drives cleanly (GPT/MBR + FAT32/NTFS/exFAT/ext4) — with both a Slint desktop GUI and a full-featured CLI.
 
 ## ✨ Features
 
-- 🔍 **Smart USB Detection** - Detects USB drives (including external USB SSDs/HDDs) via sysfs bus inspection while filtering empty readers and optical drives
-- 🚀 **Parallel Multi-Device Writing** - Optimized 4MB chunk writes with periodic sync and true per-device parallel threads
+- 🔍 **Automatic ISO Introspection & USB Hotplug** - Automatically identifies Windows ISOs, Linux hybrid ISOs, and compressed images (`.gz`/`.xz`/`.zst`) and auto-refreshes when USB drives are plugged/unplugged
+- 🪟 **Windows 10/11 ISO Mode** - Creates GPT/MBR + NTFS/FAT32 layouts (with optional `UEFI:NTFS` boot partition), extracts ISO contents, and optionally injects `autounattend.xml` (bypass TPM 2.0 / Secure Boot / 4GB RAM & Microsoft Account)
+- 🧹 **Format Mode (Non-bootable)** - Cleanly wipe, partition (`GPT`/`MBR`), and format USB drives (`FAT32`, `NTFS`, `exFAT`, `ext4`) with custom volume labels
+- 💾 **Linux Live Persistence** - Optionally create an `ext4` persistence partition (`casper-rw` + `persistence.conf`) after writing a Linux hybrid ISO
+- 🚀 **Parallel Multi-Device Writing** - Optimized 4MB chunk writes with periodic sync, streaming decompression, and true per-device parallel threads
 - 🛡️ **Safety First** - Exact `/proc/mounts` matching, mandatory unmounting, size checks, and explicit confirmations in both GUI and CLI
-- 🔐 **Least-Privilege GUI** - The graphical interface runs unprivileged (Wayland-friendly) and elevates only the write helper via `pkexec`
+- 🔐 **Least-Privilege GUI** - The graphical interface runs unprivileged (Wayland-friendly) and elevates only the write/format helper via `pkexec`
 - ✅ **Real Data Verification** - Post-write verification invalidates the Linux kernel buffer/page cache (`BLKFLSBUF` / `POSIX_FADV_DONTNEED`) so data is read back from physical USB flash
 - ⏹️ **Clean Cancellation** - Cancel writes safely from the GUI or with `Ctrl+C` in the CLI
-- 🔓 **Auto Unmount** - Automatically unmounts target partitions before writing
 - 💻 **CLI & Optional GUI** - Build with GUI + CLI by default, or `--no-default-features` for a lightweight CLI-only binary
 
 ## 📦 Installation
