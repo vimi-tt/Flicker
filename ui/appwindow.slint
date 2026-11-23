@@ -1,4 +1,4 @@
-import { CheckBox, ComboBox, HorizontalBox, LineEdit, ScrollView, TextEdit, VerticalBox } from "std-widgets.slint";
+import { CheckBox, ComboBox, LineEdit, ScrollView, TextEdit } from "std-widgets.slint";
 import { M3Theme } from "theme.slint";
 import { M3CompactButton, M3DeviceRow, M3ExpressiveButton, M3ProgressCard, M3Segmented2, M3Segmented3 } from "components.slint";
 
@@ -11,10 +11,10 @@ export component AppWindow inherits Window {
     title: "Flicker — USB Creator";
     icon: @image-url("../Flicker.png");
     background: M3Theme.surface;
-    preferred-width: 960px;
-    preferred-height: 680px;
-    min-width: 760px;
-    min-height: 560px;
+    preferred-width: 1040px;
+    preferred-height: 740px;
+    min-width: 860px;
+    min-height: 620px;
 
     in-out property <[DeviceItem]> device_items: [];
     in property <bool> has_devices: false;
@@ -74,20 +74,19 @@ export component AppWindow inherits Window {
     callback cancel_action();
     callback reset_progress();
 
-    VerticalBox {
-        padding: 16px;
-        spacing: 14px;
+    VerticalLayout {
+        padding: 20px;
+        spacing: 18px;
 
-        // Expressive Top Header (brand emphasis + semantic state pill)
-        HorizontalBox {
-            padding-left: 6px;
-            padding-right: 6px;
-            padding-top: 2px;
-            padding-bottom: 2px;
+        // Top Header (fixed vertical stretch so shapes never distort)
+        HorizontalLayout {
+            vertical-stretch: 0;
+            padding-left: 4px;
+            padding-right: 4px;
             spacing: 12px;
 
             VerticalLayout {
-                spacing: 2px;
+                spacing: 4px;
                 horizontal-stretch: 1;
 
                 Text {
@@ -100,25 +99,29 @@ export component AppWindow inherits Window {
                 Text {
                     text: "Linux & Windows Bootable USB Creator";
                     color: M3Theme.on-surface-variant;
-                    font-size: M3Theme.body-sm;
+                    font-size: M3Theme.body-md;
                 }
             }
 
-            // Semantic state pill (communicates state via text + tone, never color alone)
-            Rectangle {
-                height: 32px;
-                border-radius: M3Theme.shape-full;
-                background: root.has_error
-                    ? M3Theme.error-container
-                    : (root.is_success
-                        ? M3Theme.tertiary-container
-                        : (root.is_flashing ? M3Theme.primary-container : M3Theme.surface-container-high));
-                animate background { duration: M3Theme.motion-standard; }
+            // Vertically centered semantic status pill
+            VerticalLayout {
+                alignment: center;
+                horizontal-stretch: 0;
 
-                HorizontalLayout {
-                    padding-left: 14px;
-                    padding-right: 14px;
+                Rectangle {
+                    height: 36px;
+                    min-width: 100px;
+                    border-radius: self.height / 2;
+                    background: root.has_error
+                        ? M3Theme.error-container
+                        : (root.is_success
+                            ? M3Theme.tertiary-container
+                            : (root.is_flashing ? M3Theme.primary-container : M3Theme.surface-container-high));
+                    animate background { duration: M3Theme.motion-standard; }
+
                     Text {
+                        width: 100%;
+                        height: 100%;
                         text: root.has_error
                             ? "Error"
                             : (root.is_success
@@ -129,39 +132,40 @@ export component AppWindow inherits Window {
                             : (root.is_success
                                 ? M3Theme.on-tertiary-container
                                 : (root.is_flashing ? M3Theme.on-primary-container : M3Theme.on-surface-variant));
-                        font-size: M3Theme.label-md;
+                        font-size: M3Theme.label-lg;
                         font-weight: 700;
+                        horizontal-alignment: center;
                         vertical-alignment: center;
                     }
                 }
             }
         }
 
-        // Canonical M3 Two-Pane Workspace (Primary Setup Pane + Calm Supporting Options/Activity Pane)
-        HorizontalBox {
-            padding: 0px;
-            spacing: 16px;
+        // Canonical M3 Two-Pane Workspace
+        HorizontalLayout {
+            spacing: 20px;
             vertical-stretch: 1;
 
-            // LEFT PANE: Contained Primary Setup Surface (`surface-container-low`, shape-xl)
+            // LEFT PANE: Contained Primary Setup Surface (`surface-container-low`)
             Rectangle {
                 horizontal-stretch: 1;
-                min-width: 340px;
+                min-width: 380px;
                 border-radius: M3Theme.shape-xl;
                 background: M3Theme.surface-container-low;
 
-                VerticalBox {
-                    padding: 18px;
-                    spacing: 16px;
+                VerticalLayout {
+                    padding: 20px;
+                    spacing: 18px;
 
-                    // Step 1: Boot Selection (M3 Expressive Segmented Group)
+                    // 1. Boot Selection
                     VerticalLayout {
+                        vertical-stretch: 0;
                         spacing: 8px;
 
                         Text {
                             text: "Boot Selection";
-                            color: M3Theme.on-surface-variant;
-                            font-size: M3Theme.label-lg;
+                            color: M3Theme.on-surface;
+                            font-size: M3Theme.title-sm;
                             font-weight: 700;
                         }
 
@@ -175,18 +179,20 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    // Step 2: Target USB Devices (clean list container — no nested card noise)
+                    // 2. Target USB Drives
                     VerticalLayout {
-                        spacing: 8px;
                         vertical-stretch: 1;
+                        spacing: 8px;
 
                         HorizontalLayout {
-                            spacing: 8px;
+                            vertical-stretch: 0;
+                            spacing: 10px;
+                            height: 38px;
 
                             Text {
                                 text: "Target USB Drive(s)";
-                                color: M3Theme.on-surface-variant;
-                                font-size: M3Theme.label-lg;
+                                color: M3Theme.on-surface;
+                                font-size: M3Theme.title-sm;
                                 font-weight: 700;
                                 vertical-alignment: center;
                                 horizontal-stretch: 1;
@@ -195,6 +201,8 @@ export component AppWindow inherits Window {
                             M3CompactButton {
                                 text: "Refresh";
                                 outlined: true;
+                                height: 38px;
+                                min-width: 92px;
                                 enabled: !root.is_flashing;
                                 clicked => { root.refresh_devices(); }
                             }
@@ -204,17 +212,19 @@ export component AppWindow inherits Window {
                             border-radius: M3Theme.shape-lg;
                             background: M3Theme.surface-container;
                             vertical-stretch: 1;
-                            min-height: 120px;
+                            min-height: 130px;
 
                             if !root.has_devices: VerticalLayout {
+                                width: 100%;
+                                height: 100%;
                                 alignment: center;
-                                padding: 16px;
-                                spacing: 4px;
+                                padding: 20px;
+                                spacing: 6px;
 
                                 Text {
                                     text: "No USB drives detected";
                                     color: M3Theme.on-surface;
-                                    font-size: M3Theme.title-sm;
+                                    font-size: M3Theme.title-md;
                                     font-weight: 600;
                                     horizontal-alignment: center;
                                 }
@@ -222,7 +232,7 @@ export component AppWindow inherits Window {
                                 Text {
                                     text: "Plug in a USB drive — Flicker refreshes automatically.";
                                     color: M3Theme.on-surface-variant;
-                                    font-size: M3Theme.body-sm;
+                                    font-size: M3Theme.body-md;
                                     horizontal-alignment: center;
                                     wrap: word-wrap;
                                 }
@@ -232,9 +242,9 @@ export component AppWindow inherits Window {
                                 width: 100%;
                                 height: 100%;
 
-                                VerticalBox {
-                                    padding: 8px;
-                                    spacing: 6px;
+                                VerticalLayout {
+                                    padding: 10px;
+                                    spacing: 8px;
                                     alignment: start;
 
                                     for item[idx] in root.device_items: M3DeviceRow {
@@ -248,28 +258,35 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    // Step 3: Source Image (only in Image mode)
+                    // 3. Source Image (only in Image mode)
                     if root.boot_selection == "Disk or ISO image": VerticalLayout {
+                        vertical-stretch: 0;
                         spacing: 8px;
 
                         Text {
                             text: "Source Image (.iso, .img, .gz, .xz, .zst)";
-                            color: M3Theme.on-surface-variant;
-                            font-size: M3Theme.label-lg;
+                            color: M3Theme.on-surface;
+                            font-size: M3Theme.title-sm;
                             font-weight: 700;
                         }
 
                         HorizontalLayout {
-                            spacing: 8px;
+                            spacing: 10px;
+                            height: M3Theme.control-height;
+                            vertical-stretch: 0;
 
                             LineEdit {
                                 text: root.has_valid_iso ? root.selected_iso : "No image selected";
                                 read-only: true;
                                 horizontal-stretch: 1;
+                                height: M3Theme.control-height;
+                                font-size: M3Theme.body-md;
                             }
 
                             M3CompactButton {
                                 text: "Select";
+                                height: M3Theme.control-height;
+                                min-width: 96px;
                                 enabled: !root.is_flashing && !root.is_hashing;
                                 clicked => { root.select_iso(); }
                             }
@@ -281,13 +298,13 @@ export component AppWindow inherits Window {
                             font-size: M3Theme.body-sm;
                         }
 
-                        // Semantic ISO introspection banner (`tertiary-container`)
                         if root.detected_iso_summary != "": Rectangle {
+                            vertical-stretch: 0;
                             border-radius: M3Theme.shape-md;
                             background: M3Theme.tertiary-container;
 
-                            HorizontalBox {
-                                padding: 10px;
+                            HorizontalLayout {
+                                padding: 12px;
                                 Text {
                                     text: "Detected: " + root.detected_iso_summary;
                                     color: M3Theme.on-tertiary-container;
@@ -299,7 +316,7 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    // Primary Expressive CTA (isolated at bottom of setup pane)
+                    // Primary Expressive CTA
                     if !root.is_flashing && !root.show_progress: M3ExpressiveButton {
                         text: root.boot_selection == "Non-bootable (Format only)"
                             ? "Format USB Drive"
@@ -327,28 +344,31 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // RIGHT PANE: Calm Supporting Configuration, Checksum & Activity Pane (`surface`)
-            VerticalBox {
-                horizontal-stretch: 1.15;
-                min-width: 360px;
-                padding: 4px;
-                spacing: 12px;
+            // RIGHT PANE: Calm Supporting Configuration, Checksum & Activity Pane
+            VerticalLayout {
+                horizontal-stretch: 1.1;
+                min-width: 400px;
+                padding-top: 4px;
+                padding-bottom: 4px;
+                spacing: 14px;
 
                 Text {
                     text: "Write & Drive Configuration";
                     color: M3Theme.on-surface;
                     font-size: M3Theme.title-md;
                     font-weight: 700;
+                    vertical-stretch: 0;
                 }
 
                 // Write Mode (M3 Segmented 3-way)
                 if root.boot_selection == "Disk or ISO image": VerticalLayout {
+                    vertical-stretch: 0;
                     spacing: 6px;
 
                     Text {
                         text: "Write Mode";
                         color: M3Theme.on-surface-variant;
-                        font-size: M3Theme.label-md;
+                        font-size: M3Theme.label-lg;
                         font-weight: 600;
                     }
 
@@ -364,24 +384,29 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // Partition Scheme + Filesystem + Volume Label (Format or ISO Mode)
+                // Partition Scheme + File System + Volume Label (aligned to `control-height`)
                 if root.boot_selection == "Non-bootable (Format only)"
                     || root.write_mode == "ISO (Windows / Extract)"
                     || (root.write_mode == "Auto" && root.is_windows_iso): VerticalLayout {
-                    spacing: 10px;
+                    vertical-stretch: 0;
+                    spacing: 12px;
 
                     HorizontalLayout {
-                        spacing: 10px;
+                        spacing: 12px;
+                        vertical-stretch: 0;
 
                         VerticalLayout {
-                            spacing: 4px;
-                            width: 150px;
+                            spacing: 6px;
+                            width: 170px;
+                            horizontal-stretch: 0;
+
                             Text {
                                 text: "Partition Scheme";
                                 color: M3Theme.on-surface-variant;
                                 font-size: M3Theme.label-md;
                                 font-weight: 600;
                             }
+
                             M3Segmented2 {
                                 option-a: "GPT";
                                 value-a: "GPT";
@@ -393,49 +418,59 @@ export component AppWindow inherits Window {
                         }
 
                         VerticalLayout {
-                            spacing: 4px;
+                            spacing: 6px;
                             horizontal-stretch: 1;
+
                             Text {
                                 text: "File System";
                                 color: M3Theme.on-surface-variant;
                                 font-size: M3Theme.label-md;
                                 font-weight: 600;
                             }
+
                             ComboBox {
                                 model: ["NTFS", "FAT32", "exFAT", "ext4"];
                                 current-value <=> root.file_system;
                                 enabled: !root.is_flashing;
+                                height: M3Theme.control-height;
                             }
                         }
                     }
 
                     HorizontalLayout {
-                        spacing: 10px;
+                        spacing: 12px;
+                        height: M3Theme.control-height;
+                        vertical-stretch: 0;
+
                         Text {
                             text: "Volume Label";
                             color: M3Theme.on-surface-variant;
-                            font-size: M3Theme.label-md;
+                            font-size: M3Theme.label-lg;
                             font-weight: 600;
                             vertical-alignment: center;
-                            width: 100px;
+                            width: 112px;
                         }
+
                         LineEdit {
                             text <=> root.volume_label;
                             enabled: !root.is_flashing;
                             horizontal-stretch: 1;
+                            height: M3Theme.control-height;
+                            font-size: M3Theme.body-md;
                         }
                     }
                 }
 
-                // Windows 11 Customization (progressive disclosure — only when relevant)
+                // Windows 11 Customization
                 if root.boot_selection == "Disk or ISO image"
                     && (root.is_windows_iso || root.write_mode == "ISO (Windows / Extract)"): Rectangle {
+                    vertical-stretch: 0;
                     border-radius: M3Theme.shape-lg;
                     background: M3Theme.surface-container;
 
-                    VerticalBox {
-                        padding: 12px;
-                        spacing: 6px;
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 8px;
 
                         Text {
                             text: "Windows Customization (autounattend.xml)";
@@ -461,7 +496,8 @@ export component AppWindow inherits Window {
                 // DD Mode Options & Linux Live Persistence
                 if root.boot_selection == "Disk or ISO image"
                     && (root.write_mode == "DD (Raw)" || (root.write_mode == "Auto" && !root.is_windows_iso)): VerticalLayout {
-                    spacing: 6px;
+                    vertical-stretch: 0;
+                    spacing: 8px;
 
                     CheckBox {
                         text: "Verify written data (reads back from physical USB)";
@@ -476,15 +512,17 @@ export component AppWindow inherits Window {
                     }
 
                     if root.is_linux_hybrid_iso: HorizontalLayout {
-                        spacing: 10px;
+                        spacing: 12px;
+                        height: M3Theme.control-height;
+                        vertical-stretch: 0;
 
                         Text {
                             text: "Persistence (MB)";
                             color: M3Theme.on-surface-variant;
-                            font-size: M3Theme.label-md;
+                            font-size: M3Theme.label-lg;
                             font-weight: 600;
                             vertical-alignment: center;
-                            width: 112px;
+                            width: 130px;
                         }
 
                         LineEdit {
@@ -492,35 +530,42 @@ export component AppWindow inherits Window {
                             placeholder-text: "0 = disabled (e.g. 4096)";
                             enabled: !root.is_flashing;
                             horizontal-stretch: 1;
+                            height: M3Theme.control-height;
+                            font-size: M3Theme.body-md;
                         }
                     }
                 }
 
-                // Subtle M3 outline-variant divider
+                // Subtle divider
                 Rectangle {
+                    vertical-stretch: 0;
                     height: 1px;
                     background: M3Theme.outline-variant;
                 }
 
-                // ISO Checksum Verification (calm utility row)
+                // ISO Checksum Verification (all 3 controls locked to `control-height`)
                 if root.boot_selection == "Disk or ISO image": VerticalLayout {
-                    spacing: 6px;
+                    vertical-stretch: 0;
+                    spacing: 8px;
 
                     Text {
                         text: "Checksum Verification";
-                        color: M3Theme.on-surface-variant;
-                        font-size: M3Theme.label-md;
-                        font-weight: 600;
+                        color: M3Theme.on-surface;
+                        font-size: M3Theme.title-sm;
+                        font-weight: 700;
                     }
 
                     HorizontalLayout {
-                        spacing: 8px;
+                        spacing: 10px;
+                        height: M3Theme.control-height;
+                        vertical-stretch: 0;
 
                         ComboBox {
                             model: ["SHA256", "MD5"];
                             current-value <=> root.checksum_algo;
                             enabled: !root.is_flashing && !root.is_hashing;
-                            width: 96px;
+                            width: 116px;
+                            height: M3Theme.control-height;
                         }
 
                         LineEdit {
@@ -528,11 +573,15 @@ export component AppWindow inherits Window {
                             text <=> root.expected_checksum;
                             enabled: !root.is_flashing && !root.is_hashing;
                             horizontal-stretch: 1;
+                            height: M3Theme.control-height;
+                            font-size: M3Theme.body-md;
                         }
 
                         M3CompactButton {
                             text: root.is_hashing ? "..." : "Verify";
                             outlined: true;
+                            height: M3Theme.control-height;
+                            min-width: 92px;
                             enabled: root.has_valid_iso && !root.is_flashing && !root.is_hashing;
                             clicked => { root.calculate_checksum(root.checksum_algo, root.expected_checksum); }
                         }
@@ -549,18 +598,20 @@ export component AppWindow inherits Window {
                 // Activity Log
                 Text {
                     text: "Activity Log";
-                    color: M3Theme.on-surface-variant;
-                    font-size: M3Theme.label-md;
-                    font-weight: 600;
+                    color: M3Theme.on-surface;
+                    font-size: M3Theme.title-sm;
+                    font-weight: 700;
+                    vertical-stretch: 0;
                 }
 
                 TextEdit {
                     text: root.terminal_logs;
                     read-only: true;
                     vertical-stretch: 1;
+                    font-size: M3Theme.body-sm;
                 }
 
-                // Expressive Progress Card (only visible when active or completed/error)
+                // Expressive Progress Card
                 if root.show_progress: M3ProgressCard {
                     status-text: root.status_text;
                     progress: root.progress_value;
@@ -571,57 +622,73 @@ export component AppWindow inherits Window {
         }
     }
 
-    // M3 Confirmation Dialog (`surface-container-high`, `shape-xxl: 28px`, explicit destructive CTA)
+    // M3 Confirmation Dialog
     if root.show_confirm_dialog: Rectangle {
         width: 100%;
         height: 100%;
         background: M3Theme.scrim;
 
-        TouchArea {} // Blocks background interaction
+        TouchArea {
+            width: 100%;
+            height: 100%;
+        }
 
         Rectangle {
-            width: min(500px, parent.width - 48px);
-            height: 290px;
+            width: min(520px, parent.width - 48px);
+            height: 310px;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
             border-radius: M3Theme.shape-xxl;
             background: M3Theme.surface-container-high;
 
-            VerticalBox {
+            VerticalLayout {
                 padding: 24px;
                 spacing: 16px;
 
                 HorizontalLayout {
-                    spacing: 12px;
+                    vertical-stretch: 0;
+                    spacing: 14px;
 
-                    Rectangle {
-                        width: 40px;
-                        height: 40px;
-                        border-radius: M3Theme.shape-full;
-                        background: M3Theme.error-container;
+                    VerticalLayout {
+                        alignment: center;
+                        width: 44px;
+                        horizontal-stretch: 0;
 
-                        Text {
-                            text: "!";
-                            color: M3Theme.on-error-container;
-                            font-size: 20px;
-                            font-weight: 800;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                        Rectangle {
+                            width: 44px;
+                            height: 44px;
+                            border-radius: 22px;
+                            background: M3Theme.error-container;
+
+                            Text {
+                                width: 100%;
+                                height: 100%;
+                                text: "!";
+                                color: M3Theme.on-error-container;
+                                font-size: 22px;
+                                font-weight: 800;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
                         }
                     }
 
                     VerticalLayout {
                         alignment: center;
+                        spacing: 2px;
+                        horizontal-stretch: 1;
+
                         Text {
                             text: "Confirm Permanent Erasure";
                             color: M3Theme.on-surface;
                             font-size: M3Theme.title-lg;
                             font-weight: 700;
                         }
+
                         Text {
                             text: "This action cannot be undone.";
                             color: M3Theme.on-surface-variant;
-                            font-size: M3Theme.body-sm;
+                            font-size: M3Theme.body-md;
                         }
                     }
                 }
@@ -634,20 +701,24 @@ export component AppWindow inherits Window {
                     vertical-stretch: 1;
                 }
 
-                HorizontalBox {
-                    padding: 0px;
-                    spacing: 10px;
+                HorizontalLayout {
+                    vertical-stretch: 0;
+                    spacing: 12px;
                     alignment: end;
 
                     M3CompactButton {
                         text: "Cancel";
                         outlined: true;
+                        height: 42px;
+                        min-width: 104px;
                         clicked => { root.show_confirm_dialog = false; }
                     }
 
                     M3CompactButton {
                         text: "Erase & Proceed";
                         destructive: true;
+                        height: 42px;
+                        min-width: 156px;
                         clicked => {
                             root.show_confirm_dialog = false;
                             root.confirm_action();

@@ -1,8 +1,7 @@
-import { HorizontalBox, VerticalBox } from "std-widgets.slint";
 import { M3Theme } from "theme.slint";
 
 /// M3 Expressive Connected Segmented Button (2 options).
-/// Communicates selection through container tone, shape emphasis, and an explicit checkmark (non-color cue).
+/// Uses `self.height / 2` for true pill geometry and locks vertical-stretch to 0.
 export component M3Segmented2 inherits Rectangle {
     in property <string> option-a;
     in property <string> option-b;
@@ -11,70 +10,81 @@ export component M3Segmented2 inherits Rectangle {
     in-out property <string> current-value;
     in property <bool> enabled: true;
 
-    height: 40px;
-    border-radius: M3Theme.shape-full;
+    height: M3Theme.control-height;
+    vertical-stretch: 0;
+    border-radius: self.height / 2;
     border-width: 1px;
     border-color: M3Theme.outline-variant;
-    background: M3Theme.surface-container-low;
+    background: M3Theme.surface-container;
     clip: true;
 
     HorizontalLayout {
-        padding: 3px;
+        width: 100%;
+        height: 100%;
+        padding: 4px;
         spacing: 4px;
 
-        // Option A
         Rectangle {
             horizontal-stretch: 1;
+            height: 100%;
             property <bool> selected: root.current-value == root.value-a;
-            border-radius: selected ? M3Theme.shape-full : M3Theme.shape-md;
+            border-radius: selected ? (self.height / 2) : M3Theme.shape-md;
             background: selected
                 ? M3Theme.secondary-container
                 : (ta-a.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
             animate background { duration: M3Theme.motion-fast; }
             animate border-radius { duration: M3Theme.motion-standard; }
 
-            ta-a := TouchArea {
-                enabled: root.enabled;
-                mouse-cursor: root.enabled ? pointer : default;
-                clicked => { root.current-value = root.value-a; }
-            }
-
             Text {
+                width: 100%;
+                height: 100%;
                 text: (parent.selected ? "✓ " : "") + root.option-a;
                 color: parent.selected ? M3Theme.on-secondary-container : M3Theme.on-surface;
-                font-size: M3Theme.label-md;
+                font-size: M3Theme.label-lg;
                 font-weight: parent.selected ? 700 : 500;
                 horizontal-alignment: center;
                 vertical-alignment: center;
                 opacity: root.enabled ? 1.0 : 0.45;
             }
+
+            ta-a := TouchArea {
+                width: 100%;
+                height: 100%;
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
+                clicked => { root.current-value = root.value-a; }
+            }
         }
 
-        // Option B
         Rectangle {
             horizontal-stretch: 1;
+            height: 100%;
             property <bool> selected: root.current-value == root.value-b;
-            border-radius: selected ? M3Theme.shape-full : M3Theme.shape-md;
+            border-radius: selected ? (self.height / 2) : M3Theme.shape-md;
             background: selected
                 ? M3Theme.secondary-container
                 : (ta-b.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
             animate background { duration: M3Theme.motion-fast; }
             animate border-radius { duration: M3Theme.motion-standard; }
 
-            ta-b := TouchArea {
-                enabled: root.enabled;
-                mouse-cursor: root.enabled ? pointer : default;
-                clicked => { root.current-value = root.value-b; }
-            }
-
             Text {
+                width: 100%;
+                height: 100%;
                 text: (parent.selected ? "✓ " : "") + root.option-b;
                 color: parent.selected ? M3Theme.on-secondary-container : M3Theme.on-surface;
-                font-size: M3Theme.label-md;
+                font-size: M3Theme.label-lg;
                 font-weight: parent.selected ? 700 : 500;
                 horizontal-alignment: center;
                 vertical-alignment: center;
                 opacity: root.enabled ? 1.0 : 0.45;
+            }
+
+            ta-b := TouchArea {
+                width: 100%;
+                height: 100%;
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
+                clicked => { root.current-value = root.value-b; }
             }
         }
     }
@@ -91,34 +101,34 @@ export component M3Segmented3 inherits Rectangle {
     in-out property <string> current-value;
     in property <bool> enabled: true;
 
-    height: 38px;
-    border-radius: M3Theme.shape-full;
+    height: M3Theme.control-height;
+    vertical-stretch: 0;
+    border-radius: self.height / 2;
     border-width: 1px;
     border-color: M3Theme.outline-variant;
-    background: M3Theme.surface-container-low;
+    background: M3Theme.surface-container;
     clip: true;
 
     HorizontalLayout {
-        padding: 3px;
-        spacing: 3px;
+        width: 100%;
+        height: 100%;
+        padding: 4px;
+        spacing: 4px;
 
         Rectangle {
             horizontal-stretch: 1;
+            height: 100%;
             property <bool> selected: root.current-value == root.value-a;
-            border-radius: selected ? M3Theme.shape-full : M3Theme.shape-sm;
+            border-radius: selected ? (self.height / 2) : M3Theme.shape-sm;
             background: selected
                 ? M3Theme.secondary-container
                 : (ta3-a.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
             animate background { duration: M3Theme.motion-fast; }
             animate border-radius { duration: M3Theme.motion-standard; }
 
-            ta3-a := TouchArea {
-                enabled: root.enabled;
-                mouse-cursor: root.enabled ? pointer : default;
-                clicked => { root.current-value = root.value-a; }
-            }
-
             Text {
+                width: 100%;
+                height: 100%;
                 text: (parent.selected ? "✓ " : "") + root.option-a;
                 color: parent.selected ? M3Theme.on-secondary-container : M3Theme.on-surface;
                 font-size: M3Theme.label-md;
@@ -127,25 +137,30 @@ export component M3Segmented3 inherits Rectangle {
                 vertical-alignment: center;
                 opacity: root.enabled ? 1.0 : 0.45;
             }
+
+            ta3-a := TouchArea {
+                width: 100%;
+                height: 100%;
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
+                clicked => { root.current-value = root.value-a; }
+            }
         }
 
         Rectangle {
             horizontal-stretch: 1;
+            height: 100%;
             property <bool> selected: root.current-value == root.value-b;
-            border-radius: selected ? M3Theme.shape-full : M3Theme.shape-sm;
+            border-radius: selected ? (self.height / 2) : M3Theme.shape-sm;
             background: selected
                 ? M3Theme.secondary-container
                 : (ta3-b.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
             animate background { duration: M3Theme.motion-fast; }
             animate border-radius { duration: M3Theme.motion-standard; }
 
-            ta3-b := TouchArea {
-                enabled: root.enabled;
-                mouse-cursor: root.enabled ? pointer : default;
-                clicked => { root.current-value = root.value-b; }
-            }
-
             Text {
+                width: 100%;
+                height: 100%;
                 text: (parent.selected ? "✓ " : "") + root.option-b;
                 color: parent.selected ? M3Theme.on-secondary-container : M3Theme.on-surface;
                 font-size: M3Theme.label-md;
@@ -154,25 +169,30 @@ export component M3Segmented3 inherits Rectangle {
                 vertical-alignment: center;
                 opacity: root.enabled ? 1.0 : 0.45;
             }
+
+            ta3-b := TouchArea {
+                width: 100%;
+                height: 100%;
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
+                clicked => { root.current-value = root.value-b; }
+            }
         }
 
         Rectangle {
             horizontal-stretch: 1;
+            height: 100%;
             property <bool> selected: root.current-value == root.value-c;
-            border-radius: selected ? M3Theme.shape-full : M3Theme.shape-sm;
+            border-radius: selected ? (self.height / 2) : M3Theme.shape-sm;
             background: selected
                 ? M3Theme.secondary-container
                 : (ta3-c.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
             animate background { duration: M3Theme.motion-fast; }
             animate border-radius { duration: M3Theme.motion-standard; }
 
-            ta3-c := TouchArea {
-                enabled: root.enabled;
-                mouse-cursor: root.enabled ? pointer : default;
-                clicked => { root.current-value = root.value-c; }
-            }
-
             Text {
+                width: 100%;
+                height: 100%;
                 text: (parent.selected ? "✓ " : "") + root.option-c;
                 color: parent.selected ? M3Theme.on-secondary-container : M3Theme.on-surface;
                 font-size: M3Theme.label-md;
@@ -181,11 +201,19 @@ export component M3Segmented3 inherits Rectangle {
                 vertical-alignment: center;
                 opacity: root.enabled ? 1.0 : 0.45;
             }
+
+            ta3-c := TouchArea {
+                width: 100%;
+                height: 100%;
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
+                clicked => { root.current-value = root.value-c; }
+            }
         }
     }
 }
 
-/// M3 Expressive Primary CTA with shape-morphing press feedback and destructive/cancel tone support.
+/// M3 Expressive Primary CTA with shape-morphing press feedback.
 export component M3ExpressiveButton inherits Rectangle {
     in property <string> text;
     in property <bool> enabled: true;
@@ -197,10 +225,11 @@ export component M3ExpressiveButton inherits Rectangle {
     accessible-label: root.text;
     accessible-enabled: root.enabled;
 
-    height: 52px;
+    height: M3Theme.cta-height;
+    vertical-stretch: 0;
     border-radius: ta.pressed && root.enabled
         ? M3Theme.shape-lg
-        : (root.destructive ? M3Theme.shape-lg : M3Theme.shape-xxl);
+        : (root.destructive ? M3Theme.shape-lg : (self.height / 2));
     background: !root.enabled
         ? M3Theme.surface-container-highest
         : (root.destructive
@@ -210,7 +239,6 @@ export component M3ExpressiveButton inherits Rectangle {
     animate border-radius { duration: M3Theme.motion-fast; easing: cubic-bezier(0.2, 0, 0, 1); }
     animate background { duration: M3Theme.motion-standard; }
 
-    // State layer overlay
     Rectangle {
         width: 100%;
         height: 100%;
@@ -222,6 +250,8 @@ export component M3ExpressiveButton inherits Rectangle {
     }
 
     Text {
+        width: 100%;
+        height: 100%;
         text: root.text;
         color: !root.enabled
             ? M3Theme.on-surface-variant
@@ -232,17 +262,19 @@ export component M3ExpressiveButton inherits Rectangle {
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
-        opacity: root.enabled ? 1.0 : 0.55;
+        opacity: root.enabled ? 1.0 : 0.6;
     }
 
     ta := TouchArea {
+        width: 100%;
+        height: 100%;
         enabled: root.enabled;
         mouse-cursor: root.enabled ? pointer : default;
         clicked => { root.clicked(); }
     }
 }
 
-/// M3 Tonal / Outlined / Destructive compact utility button (Refresh, Select, Verify, Cancel, Erase).
+/// M3 Tonal / Outlined / Destructive utility button aligned to `control-height`.
 export component M3CompactButton inherits Rectangle {
     in property <string> text;
     in property <bool> enabled: true;
@@ -254,9 +286,11 @@ export component M3CompactButton inherits Rectangle {
     accessible-label: root.text;
     accessible-enabled: root.enabled;
 
-    height: 36px;
-    min-width: 76px;
-    border-radius: ta.pressed && root.enabled ? M3Theme.shape-sm : M3Theme.shape-full;
+    height: M3Theme.control-height;
+    min-width: 96px;
+    vertical-stretch: 0;
+    horizontal-stretch: 0;
+    border-radius: ta.pressed && root.enabled ? M3Theme.shape-md : (self.height / 2);
     border-width: root.outlined ? 1px : 0px;
     border-color: M3Theme.outline;
     background: !root.enabled
@@ -277,32 +311,32 @@ export component M3CompactButton inherits Rectangle {
             : (ta.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
     }
 
-    HorizontalLayout {
-        padding-left: 14px;
-        padding-right: 14px;
-        Text {
-            text: root.text;
-            color: !root.enabled
-                ? M3Theme.on-surface-variant
-                : (root.destructive
-                    ? M3Theme.on-error
-                    : (root.outlined ? M3Theme.on-surface : M3Theme.on-secondary-container));
-            font-size: M3Theme.label-lg;
-            font-weight: 600;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            opacity: root.enabled ? 1.0 : 0.5;
-        }
+    Text {
+        width: 100%;
+        height: 100%;
+        text: root.text;
+        color: !root.enabled
+            ? M3Theme.on-surface-variant
+            : (root.destructive
+                ? M3Theme.on-error
+                : (root.outlined ? M3Theme.on-surface : M3Theme.on-secondary-container));
+        font-size: M3Theme.label-lg;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        opacity: root.enabled ? 1.0 : 0.55;
     }
 
     ta := TouchArea {
+        width: 100%;
+        height: 100%;
         enabled: root.enabled;
         mouse-cursor: root.enabled ? pointer : default;
         clicked => { root.clicked(); }
     }
 }
 
-/// M3 Expressive selectable device row (>= 48px target height, shape-morphing selection).
+/// M3 Expressive selectable device row (>= 52px target height, optically centered checkbox).
 export component M3DeviceRow inherits Rectangle {
     in property <string> label;
     in property <bool> selected: false;
@@ -314,8 +348,9 @@ export component M3DeviceRow inherits Rectangle {
     accessible-checked: root.selected;
     accessible-enabled: root.enabled;
 
-    min-height: 48px;
-    border-radius: root.selected ? M3Theme.shape-lg : M3Theme.shape-sm;
+    min-height: 52px;
+    vertical-stretch: 0;
+    border-radius: root.selected ? M3Theme.shape-lg : M3Theme.shape-md;
     border-width: root.selected ? 1.5px : 1px;
     border-color: root.selected ? M3Theme.primary : M3Theme.outline-variant;
     background: root.selected
@@ -326,37 +361,39 @@ export component M3DeviceRow inherits Rectangle {
     animate background { duration: M3Theme.motion-fast; }
     animate border-color { duration: M3Theme.motion-fast; }
 
-    ta := TouchArea {
-        enabled: root.enabled;
-        mouse-cursor: root.enabled ? pointer : default;
-        clicked => { root.toggled(); }
-    }
+    HorizontalLayout {
+        width: 100%;
+        height: 100%;
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 12px;
 
-    HorizontalBox {
-        padding-left: 12px;
-        padding-right: 12px;
-        padding-top: 8px;
-        padding-bottom: 8px;
-        spacing: 10px;
-        alignment: start;
+        VerticalLayout {
+            alignment: center;
+            width: 24px;
+            horizontal-stretch: 0;
 
-        // Explicit non-color selection badge
-        Rectangle {
-            width: 22px;
-            height: 22px;
-            border-radius: root.selected ? M3Theme.shape-full : M3Theme.shape-xs;
-            border-width: root.selected ? 0px : 1.5px;
-            border-color: M3Theme.outline;
-            background: root.selected ? M3Theme.primary : transparent;
-            animate border-radius { duration: M3Theme.motion-fast; }
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: root.selected ? 12px : M3Theme.shape-xs;
+                border-width: root.selected ? 0px : 1.5px;
+                border-color: M3Theme.outline;
+                background: root.selected ? M3Theme.primary : transparent;
+                animate border-radius { duration: M3Theme.motion-fast; }
 
-            Text {
-                text: root.selected ? "✓" : "";
-                color: M3Theme.on-primary;
-                font-size: 13px;
-                font-weight: 800;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+                Text {
+                    width: 100%;
+                    height: 100%;
+                    text: root.selected ? "✓" : "";
+                    color: M3Theme.on-primary;
+                    font-size: 14px;
+                    font-weight: 800;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
             }
         }
 
@@ -368,31 +405,39 @@ export component M3DeviceRow inherits Rectangle {
             vertical-alignment: center;
             wrap: word-wrap;
             horizontal-stretch: 1;
-            opacity: root.enabled ? 1.0 : 0.55;
+            opacity: root.enabled ? 1.0 : 0.6;
         }
+    }
+
+    ta := TouchArea {
+        width: 100%;
+        height: 100%;
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.toggled(); }
     }
 }
 
-/// M3 Expressive Linear Progress Card with semantic state colors (Active / Success / Error).
+/// M3 Expressive Linear Progress Card with semantic state colors.
 export component M3ProgressCard inherits Rectangle {
     in property <string> status-text;
     in property <float> progress: 0.0;
     in property <bool> has-error: false;
     in property <bool> is-success: false;
 
-    border-radius: M3Theme.shape-xl;
+    vertical-stretch: 0;
+    border-radius: M3Theme.shape-lg;
     background: root.has-error
         ? M3Theme.error-container
         : (root.is-success ? M3Theme.tertiary-container : M3Theme.surface-container-high);
     animate background { duration: M3Theme.motion-emphasized; }
 
-    VerticalBox {
+    VerticalLayout {
         padding: 14px;
         spacing: 10px;
 
-        HorizontalBox {
-            padding: 0px;
-            spacing: 8px;
+        HorizontalLayout {
+            spacing: 10px;
 
             Text {
                 text: root.status-text;
@@ -402,6 +447,7 @@ export component M3ProgressCard inherits Rectangle {
                 font-size: M3Theme.title-sm;
                 font-weight: 700;
                 horizontal-stretch: 1;
+                vertical-alignment: center;
                 wrap: word-wrap;
             }
 
@@ -412,13 +458,13 @@ export component M3ProgressCard inherits Rectangle {
                     : (root.is-success ? M3Theme.on-tertiary-container : M3Theme.primary);
                 font-size: M3Theme.title-sm;
                 font-weight: 800;
+                vertical-alignment: center;
             }
         }
 
-        // Expressive pill track + animated indicator
         Rectangle {
             height: 12px;
-            border-radius: M3Theme.shape-full;
+            border-radius: 6px;
             background: M3Theme.surface-container-lowest;
             clip: true;
 
@@ -427,7 +473,7 @@ export component M3ProgressCard inherits Rectangle {
                 y: 0px;
                 height: 100%;
                 width: parent.width * Math.clamp(root.progress, 0.0, 1.0);
-                border-radius: M3Theme.shape-full;
+                border-radius: 6px;
                 background: root.has-error
                     ? M3Theme.error
                     : (root.is-success ? M3Theme.tertiary : M3Theme.primary);

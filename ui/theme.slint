@@ -3,7 +3,7 @@ import { Palette } from "std-widgets.slint";
 /// Material Design 3 Expressive semantic design tokens for Flicker.
 ///
 /// Brand seed: Flame Ember (warm terracotta/amber aligned with Flicker's identity).
-/// All `on-*` pairs are tuned for WCAG AA (>= 4.5:1) contrast in both Light and Dark schemes.
+/// All `on-*` pairs meet WCAG AA (>= 4.5:1) contrast in both Light and Dark schemes.
 export global M3Theme {
     out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
 
@@ -22,22 +22,22 @@ export global M3Theme {
     // --- Tertiary (Detection / Positive / Status Accents) ---
     out property <color> tertiary: dark ? #9DD49E : #2F6A36;
     out property <color> on-tertiary: dark ? #063911 : #FFFFFF;
-    out property <color> tertiary-container: dark ? #175121 : #B8F1B9;
-    out property <color> on-tertiary-container: dark ? #B8F1B9 : #002107;
+    out property <color> tertiary-container: dark ? #175121 : #C4F2C5;
+    out property <color> on-tertiary-container: dark ? #C4F2C5 : #002107;
 
-    // --- Surfaces (Tonal Hierarchy — replaces arbitrary gray cards) ---
+    // --- Surfaces (Tonal Hierarchy) ---
     out property <color> surface: dark ? #181210 : #FFF8F6;
     out property <color> surface-container-lowest: dark ? #130D0B : #FFFFFF;
     out property <color> surface-container-low: dark ? #211A18 : #FFF0EC;
-    out property <color> surface-container: dark ? #251E1C : #FCEAE4;
-    out property <color> surface-container-high: dark ? #302826 : #F6E4DE;
-    out property <color> surface-container-highest: dark ? #3B3330 : #F0DED8;
+    out property <color> surface-container: dark ? #27201E : #FCEAE4;
+    out property <color> surface-container-high: dark ? #322A27 : #F6E4DE;
+    out property <color> surface-container-highest: dark ? #3D3532 : #EEDCD6;
 
-    out property <color> on-surface: dark ? #F0DFDA : #231917;
-    out property <color> on-surface-variant: dark ? #D8C2BC : #53433F;
+    out property <color> on-surface: dark ? #F5E6E1 : #201715;
+    out property <color> on-surface-variant: dark ? #DEC8C2 : #4E3E3A;
 
-    out property <color> outline: dark ? #A08D87 : #85736E;
-    out property <color> outline-variant: dark ? #53433F : #D8C2BC;
+    out property <color> outline: dark ? #A5928C : #7F6D68;
+    out property <color> outline-variant: dark ? #574743 : #D5C0BA;
 
     // --- Error / Destructive ---
     out property <color> error: dark ? #FFB4AB : #BA1A1A;
@@ -47,7 +47,7 @@ export global M3Theme {
 
     // --- Overlay / State Layers ---
     out property <color> scrim: #00000088;
-    out property <color> hover-tint: dark ? #FFFFFF14 : #0000000E;
+    out property <color> hover-tint: dark ? #FFFFFF14 : #0000000D;
     out property <color> press-tint: dark ? #FFFFFF22 : #00000018;
 
     // --- M3 Expressive Shape Scale ---
@@ -57,21 +57,23 @@ export global M3Theme {
     out property <length> shape-lg: 16px;
     out property <length> shape-xl: 24px;
     out property <length> shape-xxl: 28px;
-    out property <length> shape-full: 999px;
 
-    // --- M3 Expressive Typography Scale ---
-    out property <length> headline-sm: 24px;
-    out property <length> title-lg: 18px;
-    out property <length> title-md: 15px;
-    out property <length> title-sm: 13px;
-    out property <length> body-md: 13px;
-    out property <length> body-sm: 12px;
-    out property <length> label-lg: 13px;
-    out property <length> label-md: 12px;
-    out property <length> label-sm: 11px;
+    // --- Unified Desktop Control Heights (prevents misaligned rows) ---
+    out property <length> control-height: 44px;
+    out property <length> cta-height: 54px;
+
+    // --- M3 Desktop Typography Scale (readable >= 13px floor) ---
+    out property <length> headline-sm: 26px;
+    out property <length> title-lg: 20px;
+    out property <length> title-md: 16px;
+    out property <length> title-sm: 15px;
+    out property <length> body-md: 14px;
+    out property <length> body-sm: 13px;
+    out property <length> label-lg: 14px;
+    out property <length> label-md: 13px;
 
     // --- M3 Motion Durations ---
     out property <duration> motion-fast: 140ms;
     out property <duration> motion-standard: 240ms;
-    out property <duration> motion-emphasized: 380ms;
+    out property <duration> motion-emphasized: 360ms;
 }
