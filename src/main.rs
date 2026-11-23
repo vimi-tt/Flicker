@@ -6,6 +6,7 @@ mod gui;
 mod iso;
 mod usb;
 mod utils;
+mod windows;
 mod writer;
 
 use anyhow::Result;
@@ -33,15 +34,41 @@ fn main() -> Result<()> {
                 yes,
                 verify,
                 resume,
+                mode,
+                scheme,
+                fs,
+                label,
+                win_bypass_tpm,
+                win_bypass_msa,
+                persistence,
             } => {
                 println!("📝 Writing ISO to device(s)...");
                 println!("  ISO:     {:?}", iso);
                 println!("  Devices: {:?}", devices);
+                println!("  Mode:    {}", mode);
                 println!("  Auto-confirm: {}", yes);
                 println!("  Verify:  {}", verify);
                 println!("  Resume:  {}", resume);
 
-                write_iso(&iso, &devices, yes, verify, resume)?;
+                let win_opts = windows::WindowsOptions {
+                    bypass_tpm_ram: win_bypass_tpm,
+                    bypass_msa: win_bypass_msa,
+                    disable_telemetry: win_bypass_tpm || win_bypass_msa,
+                };
+
+                write_iso(
+                    &iso,
+                    &devices,
+                    yes,
+                    verify,
+                    resume,
+                    &mode,
+                    &scheme,
+                    &fs,
+                    label.as_deref(),
+                    &win_opts,
+                    persistence,
+                )?;
             }
 
             Commands::Verify {
@@ -87,8 +114,31 @@ fn main() -> Result<()> {
                 devices,
                 verify,
                 resume,
+                mode,
+                scheme,
+                fs,
+                label,
+                win_bypass_tpm,
+                win_bypass_msa,
+                persistence,
             } => {
-                run_internal_write(&iso, &devices, verify, resume)?;
+                let win_opts = windows::WindowsOptions {
+                    bypass_tpm_ram: win_bypass_tpm,
+                    bypass_msa: win_bypass_msa,
+                    disable_telemetry: win_bypass_tpm || win_bypass_msa,
+                };
+                run_internal_write(
+                    &iso,
+                    &devices,
+                    verify,
+                    resume,
+                    &mode,
+                    &scheme,
+                    &fs,
+                    label.as_deref(),
+                    &win_opts,
+                    persistence,
+                )?;
             }
 
             Commands::InternalFormat {
@@ -118,14 +168,28 @@ fn main() -> Result<()> {
 
 /// Privileged helper entry point invoked by the unprivileged GUI via `pkexec`.
 /// Streams structured progress lines to stdout and monitors stdin for cancellation.
+#[allow(clippy::too_many_arguments)]
 fn run_internal_write(
     iso: &std::path::Path,
     devices: &[std::path::PathBuf],
     verify: bool,
     resume: bool,
+    mode_str: &str,
+    scheme_str: &str,
+    fs_str: &str,
+    label_opt: Option<&str>,
+    win_opts: &windows::WindowsOptions,
+    persistence_mb: u64,
 ) -> Result<()> {
     utils::require_root_privileges()?;
     utils::validate_iso_file(iso)?;
+
+    let iso_info = iso::inspect_image(iso)?;
+    let requested_mode = iso::WriteMode::parse(mode_str)?;
+    let effective_mode = match requested_mode {
+        iso::WriteMode::Auto => iso_info.recommended_mode,
+        other => other,
+    };
 
     let iso_size = std::fs::metadata(iso)?.len();
 
@@ -184,14 +248,56 @@ fn run_internal_write(
         }
     });
 
-    let res = writer::write_iso_to_devices(
-        iso,
-        devices,
-        verify,
-        resume,
-        Some(tx),
-        Some(cancel_flag),
-    );
+    let res = match effective_mode {
+        iso::WriteMode::Iso => {
+            let scheme = format::PartitionScheme::parse(scheme_str)?;
+            let fs = format::FileSystem::parse(fs_str)?;
+            let effective_label = label_opt
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or(&iso_info.volume_label);
+            let mut last_res = Ok(());
+            for dev in devices {
+                if let Err(e) = windows::write_iso_mode(
+                    iso,
+                    dev,
+                    scheme,
+                    fs,
+                    effective_label,
+                    win_opts,
+                    Some(tx.clone()),
+                    Some(Arc::clone(&cancel_flag)),
+                ) {
+                    last_res = Err(e);
+                    break;
+                }
+            }
+            drop(tx);
+            last_res
+        }
+        iso::WriteMode::Dd | iso::WriteMode::Auto => {
+            let write_res = writer::write_iso_to_devices(
+                iso,
+                devices,
+                verify,
+                resume,
+                Some(tx.clone()),
+                Some(Arc::clone(&cancel_flag)),
+            );
+            if write_res.is_ok() && persistence_mb > 0 {
+                for dev in devices {
+                    windows::create_persistence_partition(
+                        dev,
+                        iso_size,
+                        persistence_mb,
+                        Some(tx.clone()),
+                    )?;
+                }
+            }
+            drop(tx);
+            write_res
+        }
+    };
+
     let _ = emitter.join();
     res
 }
@@ -270,12 +376,19 @@ fn list_devices(verbose: bool) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_iso(
     iso: &std::path::Path,
     devices: &[std::path::PathBuf],
     skip_confirm: bool,
     verify: bool,
     resume: bool,
+    mode_str: &str,
+    scheme_str: &str,
+    fs_str: &str,
+    label_opt: Option<&str>,
+    win_opts: &windows::WindowsOptions,
+    persistence_mb: u64,
 ) -> Result<()> {
     use std::io;
 
@@ -284,17 +397,26 @@ fn write_iso(
     utils::require_root_privileges()?;
     println!("✓ Running with root privileges");
 
-    // 2. Validate ISO file
-    println!("\n📋 Validating ISO file...");
+    // 2. Validate & inspect ISO file
+    println!("\n📋 Validating & inspecting image...");
     utils::validate_iso_file(iso)?;
+
+    let iso_info = iso::inspect_image(iso)?;
+    let requested_mode = iso::WriteMode::parse(mode_str)?;
+    let effective_mode = match requested_mode {
+        iso::WriteMode::Auto => iso_info.recommended_mode,
+        other => other,
+    };
 
     let iso_metadata = std::fs::metadata(iso)?;
     let iso_size = iso_metadata.len();
     println!(
-        "✓ ISO file valid: {} ({})",
+        "✓ Image valid: {} ({})",
         iso.display(),
         utils::format_size(iso_size)
     );
+    println!("  🔎 {}", iso_info.summary);
+    println!("  ⚙️  Effective mode: {:?}", effective_mode);
 
     let usb_devices = usb::list_usb_devices()?;
 
@@ -415,7 +537,35 @@ fn write_iso(
     let start_time = std::time::Instant::now();
     writer::install_ctrlc_handler();
 
-    writer::write_iso_to_devices(iso, devices, verify, resume, None, None)?;
+    match effective_mode {
+        iso::WriteMode::Iso => {
+            let scheme = format::PartitionScheme::parse(scheme_str)?;
+            let fs = format::FileSystem::parse(fs_str)?;
+            let effective_label = label_opt
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or(&iso_info.volume_label);
+            for dev in devices {
+                windows::write_iso_mode(
+                    iso,
+                    dev,
+                    scheme,
+                    fs,
+                    effective_label,
+                    win_opts,
+                    None,
+                    None,
+                )?;
+            }
+        }
+        iso::WriteMode::Dd | iso::WriteMode::Auto => {
+            writer::write_iso_to_devices(iso, devices, verify, resume, None, None)?;
+            if persistence_mb > 0 {
+                for dev in devices {
+                    windows::create_persistence_partition(dev, iso_size, persistence_mb, None)?;
+                }
+            }
+        }
+    }
 
     let elapsed = start_time.elapsed();
     let speed = writer::calculate_speed(iso_size * devices.len() as u64, elapsed.as_secs_f64());

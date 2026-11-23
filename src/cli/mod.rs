@@ -38,6 +38,34 @@ pub enum Commands {
         /// Resume interrupted write
         #[arg(short = 'r', long)]
         resume: bool,
+
+        /// Write mode: auto (detect ISO type), dd (raw copy), or iso (extract/Windows mode)
+        #[arg(short = 'm', long, default_value = "auto")]
+        mode: String,
+
+        /// Partition scheme for ISO mode (gpt or mbr)
+        #[arg(short = 's', long, default_value = "gpt")]
+        scheme: String,
+
+        /// Filesystem for ISO mode (ntfs, fat32, exfat, ext4)
+        #[arg(short = 'f', long, default_value = "ntfs")]
+        fs: String,
+
+        /// Custom volume label for ISO mode (defaults to detected ISO label)
+        #[arg(short = 'l', long)]
+        label: Option<String>,
+
+        /// Windows 11: inject autounattend.xml to bypass TPM 2.0, Secure Boot, and 4GB RAM checks
+        #[arg(long)]
+        win_bypass_tpm: bool,
+
+        /// Windows 11: inject autounattend.xml to bypass Microsoft Account requirement (local account)
+        #[arg(long)]
+        win_bypass_msa: bool,
+
+        /// Linux Live: create an ext4 persistence partition of the given size in MiB after DD write
+        #[arg(long, value_name = "MB", default_value_t = 0)]
+        persistence: u64,
     },
 
     /// Verify ISO file checksum
@@ -99,6 +127,27 @@ pub enum Commands {
 
         #[arg(long)]
         resume: bool,
+
+        #[arg(long, default_value = "auto")]
+        mode: String,
+
+        #[arg(long, default_value = "gpt")]
+        scheme: String,
+
+        #[arg(long, default_value = "ntfs")]
+        fs: String,
+
+        #[arg(long)]
+        label: Option<String>,
+
+        #[arg(long)]
+        win_bypass_tpm: bool,
+
+        #[arg(long)]
+        win_bypass_msa: bool,
+
+        #[arg(long, default_value_t = 0)]
+        persistence: u64,
     },
 
     /// Internal privileged format helper invoked by the GUI via pkexec

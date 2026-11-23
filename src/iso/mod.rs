@@ -45,14 +45,12 @@ impl ImageKind {
 
 /// Recommended write strategy inferred from the image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum WriteMode {
     Auto,
     Dd,
     Iso,
 }
 
-#[allow(dead_code)]
 impl WriteMode {
     pub fn parse(s: &str) -> Result<Self> {
         match s.trim().to_ascii_lowercase().as_str() {
