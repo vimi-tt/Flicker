@@ -32,19 +32,7 @@ pub struct UsbDevice {
 impl UsbDevice {
     /// Format size in human-readable format
     pub fn size_human(&self) -> String {
-        let size = self.size as f64;
-        
-        if size < 1024.0 {
-            format!("{} B", size)
-        } else if size < 1024.0 * 1024.0 {
-            format!("{:.2} KB", size / 1024.0)
-        } else if size < 1024.0 * 1024.0 * 1024.0 {
-            format!("{:.2} MB", size / (1024.0 * 1024.0))
-        } else if size < 1024.0 * 1024.0 * 1024.0 * 1024.0 {
-            format!("{:.2} GB", size / (1024.0 * 1024.0 * 1024.0))
-        } else {
-            format!("{:.2} TB", size / (1024.0 * 1024.0 * 1024.0 * 1024.0))
-        }
+        crate::utils::format_size(self.size)
     }
     
     /// Get a short description of the device
@@ -69,39 +57,56 @@ pub fn list_usb_devices() -> Result<Vec<UsbDevice>> {
         let device_name = entry.file_name();
         let device_name_str = device_name.to_string_lossy();
         
-        // Skip loop devices, ram devices, etc.
+        // Skip loop, ram, device-mapper, optical (sr), zram, floppy, and md RAID devices
         if device_name_str.starts_with("loop")
             || device_name_str.starts_with("ram")
             || device_name_str.starts_with("dm-")
+            || device_name_str.starts_with("sr")
+            || device_name_str.starts_with("zram")
+            || device_name_str.starts_with("fd")
+            || device_name_str.starts_with("md")
         {
             continue;
         }
         
         let device_path = entry.path();
         
-        // Check if it's a removable device (USB)
+        // Check if it's a USB or removable storage device
         if let Ok(device) = check_if_usb_device(&device_path, &device_name_str) {
             devices.push(device);
         }
     }
     
+    devices.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(devices)
 }
 
-/// Check if a block device is a USB device and return its information
+/// Check if a block device is connected over a USB bus by inspecting its sysfs canonical path
+fn is_usb_bus(device_path: &std::path::Path) -> bool {
+    std::fs::canonicalize(device_path)
+        .ok()
+        .map(|resolved| resolved.to_string_lossy().contains("/usb"))
+        .unwrap_or(false)
+}
+
+/// Check if a block device is a USB/removable storage device and return its information
 fn check_if_usb_device(device_path: &std::path::Path, device_name: &str) -> Result<UsbDevice> {
-    // Check if removable
+    // Check if connected over USB bus or flagged as removable
     let removable_path = device_path.join("removable");
     let is_removable = std::fs::read_to_string(&removable_path)
         .unwrap_or_default()
-        .trim() == "1";
-    
-    if !is_removable {
-        anyhow::bail!("Not a removable device");
+        .trim()
+        == "1";
+
+    if !is_usb_bus(device_path) && !is_removable {
+        anyhow::bail!("Not a USB or removable device");
     }
-    
-    // Get device size
+
+    // Get device size and ignore empty media (e.g., empty SD card readers)
     let size = read_device_size(device_path)?;
+    if size == 0 {
+        anyhow::bail!("Device has zero size (no media present)");
+    }
     
     // Get vendor and model
     let vendor = read_sysfs_value(device_path, "device/vendor").unwrap_or_else(|_| "Unknown".to_string());
@@ -151,22 +156,12 @@ fn read_sysfs_value(device_path: &std::path::Path, subpath: &str) -> Result<Stri
 fn check_mount_status(device_name: &str) -> Result<(bool, Vec<String>)> {
     let mounts = std::fs::read_to_string("/proc/mounts")
         .context("Failed to read /proc/mounts")?;
-    
-    let mut mount_points = Vec::new();
-    
-    for line in mounts.lines() {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() < 2 {
-            continue;
-        }
-        
-        // Check if this line is for our device or its partitions
-        let mount_device = parts[0];
-        if mount_device.contains(device_name) {
-            mount_points.push(parts[1].to_string());
-        }
-    }
-    
+
+    let mount_points: Vec<String> = crate::utils::parse_mounts_for_device(&mounts, device_name)
+        .into_iter()
+        .map(|(_, mp)| mp)
+        .collect();
+
     Ok((!mount_points.is_empty(), mount_points))
 }
 

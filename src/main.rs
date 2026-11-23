@@ -310,31 +310,33 @@ fn write_iso(
             }
         }
 
-        // 5. Check device size
-        if let Some(usb_dev) = usb_devices.iter().find(|d| d.name == device_name) {
-            if iso_size > usb_dev.size {
+        // 5. Check device size (works for both detected USBs and confirmed non-USB block devices)
+        let dev_size = usb_devices
+            .iter()
+            .find(|d| d.name == device_name)
+            .map(|d| d.size)
+            .or_else(|| utils::get_block_device_size(device_name).ok());
+
+        if let Some(size) = dev_size {
+            if iso_size > size {
                 anyhow::bail!(
                     "❌ ISO file ({}) is larger than device {} ({})!\n   ISO: {}\n   Device: {}",
                     utils::format_size(iso_size),
                     device.display(),
-                    utils::format_size(usb_dev.size),
+                    utils::format_size(size),
                     iso_size,
-                    usb_dev.size
+                    size
                 );
             }
-            
+
             println!("📊 Space check for {}:", device.display());
             println!("   ISO size:    {}", utils::format_size(iso_size));
-            println!("   Device size: {}", utils::format_size(usb_dev.size));
+            println!("   Device size: {}", utils::format_size(size));
             println!("   ✓ Sufficient space available");
-            
-            // 6. Unmount if necessary
-            if usb_dev.is_mounted {
-                println!("🔓 Device {} is mounted, unmounting...", device.display());
-                utils::unmount_device(device_name)?;
-                println!("✓ Device unmounted successfully");
-            }
         }
+
+        // 6. Unmount any mounted partitions on the target device
+        utils::unmount_device(device_name)?;
     }
 
     // 7. Final confirmation
@@ -345,10 +347,15 @@ fn write_iso(
         println!();
         println!("This will COMPLETELY ERASE all data on the following devices:");
         for device in devices {
-            let device_name = device.file_name().unwrap().to_str().unwrap();
-            let size = usb_devices.iter()
+            let device_name = device
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown");
+            let size = usb_devices
+                .iter()
                 .find(|d| d.name == device_name)
                 .map(|d| d.size)
+                .or_else(|| utils::get_block_device_size(device_name).ok())
                 .unwrap_or(0);
             println!("   - {} ({})", device.display(), utils::format_size(size));
         }
