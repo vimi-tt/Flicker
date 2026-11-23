@@ -186,12 +186,72 @@ pub fn unmount_device(device_name: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_format_size() {
         assert_eq!(format_size(512), "512 B");
         assert_eq!(format_size(1024), "1.00 KB");
         assert_eq!(format_size(1024 * 1024), "1.00 MB");
         assert_eq!(format_size(1024 * 1024 * 1024), "1.00 GB");
+    }
+
+    #[test]
+    fn test_is_mount_for_device_exact_and_no_substring_collision() {
+        assert!(is_mount_for_device("/dev/sda", "sda"));
+        assert!(is_mount_for_device("/dev/sda1", "sda"));
+        assert!(is_mount_for_device("/dev/sda12", "sda"));
+        assert!(!is_mount_for_device("/dev/sdaa", "sda"));
+        assert!(!is_mount_for_device("/dev/sdaa1", "sda"));
+        assert!(!is_mount_for_device("/dev/sdb1", "sda"));
+        assert!(!is_mount_for_device("tmpfs", "sda"));
+
+        assert!(is_mount_for_device("/dev/nvme0n1", "nvme0n1"));
+        assert!(is_mount_for_device("/dev/nvme0n1p1", "nvme0n1"));
+        assert!(is_mount_for_device("/dev/nvme0n1p12", "nvme0n1"));
+        assert!(!is_mount_for_device("/dev/nvme0n10", "nvme0n1"));
+        assert!(!is_mount_for_device("/dev/nvme0n1p", "nvme0n1"));
+
+        assert!(is_mount_for_device("/dev/mmcblk0p2", "mmcblk0"));
+        assert!(!is_mount_for_device("/dev/mmcblk01", "mmcblk0"));
+    }
+
+    #[test]
+    fn test_parse_mounts_for_device_decodes_spaces() {
+        let sample = "\
+/dev/sda1 /boot ext4 rw 0 0
+/dev/sdaa1 /mnt/other ext4 rw 0 0
+/dev/sdb1 /media/user/MY\\040USB vfat rw 0 0
+/dev/sdb2 /media/user/DATA ext4 rw 0 0
+/dev/sdba1 /media/user/WRONG ext4 rw 0 0
+";
+        let sdb_mounts = parse_mounts_for_device(sample, "sdb");
+        assert_eq!(
+            sdb_mounts,
+            vec![
+                ("/dev/sdb1".to_string(), "/media/user/MY USB".to_string()),
+                ("/dev/sdb2".to_string(), "/media/user/DATA".to_string()),
+            ]
+        );
+
+        let sda_mounts = parse_mounts_for_device(sample, "sda");
+        assert_eq!(
+            sda_mounts,
+            vec![("/dev/sda1".to_string(), "/boot".to_string())]
+        );
+    }
+
+    #[test]
+    fn test_validate_iso_file_rejects_missing_and_small() {
+        let missing = std::env::temp_dir().join("flicker_nonexistent_test_file.iso");
+        assert!(validate_iso_file(&missing).is_err());
+
+        let small = std::env::temp_dir().join(format!(
+            "flicker_small_{}.iso",
+            std::process::id()
+        ));
+        std::fs::write(&small, b"tiny").unwrap();
+        let res = validate_iso_file(&small);
+        let _ = std::fs::remove_file(&small);
+        assert!(res.is_err());
     }
 }

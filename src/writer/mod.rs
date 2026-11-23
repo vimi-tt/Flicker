@@ -510,6 +510,14 @@ pub fn calculate_speed(bytes: u64, elapsed_secs: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::AtomicUsize;
+
+    static TEST_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    fn temp_test_path(label: &str) -> PathBuf {
+        let n = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+        std::env::temp_dir().join(format!("flicker_test_{}_{}_{}.bin", std::process::id(), label, n))
+    }
 
     #[test]
     fn test_calculate_speed() {
@@ -521,5 +529,104 @@ mod tests {
 
         // Zero or negative elapsed time
         assert_eq!(calculate_speed(1024, 0.0), "N/A");
+    }
+
+    #[test]
+    fn test_write_and_verify_parallel_devices() {
+        let iso = temp_test_path("iso_parallel");
+        let dev1 = temp_test_path("dev1");
+        let dev2 = temp_test_path("dev2");
+
+        // 5 MB payload (crosses the 4 MB BUFFER_SIZE boundary)
+        let payload: Vec<u8> = (0..(5 * 1024 * 1024)).map(|i| (i % 251) as u8).collect();
+        std::fs::write(&iso, &payload).unwrap();
+        std::fs::write(&dev1, vec![0u8; payload.len()]).unwrap();
+        std::fs::write(&dev2, vec![0u8; payload.len()]).unwrap();
+
+        let res = write_iso_to_devices(
+            &iso,
+            &[dev1.clone(), dev2.clone()],
+            true,
+            false,
+            None,
+            None,
+        );
+
+        let data1 = std::fs::read(&dev1).unwrap();
+        let data2 = std::fs::read(&dev2).unwrap();
+
+        let _ = std::fs::remove_file(&iso);
+        let _ = std::fs::remove_file(&dev1);
+        let _ = std::fs::remove_file(&dev2);
+
+        res.unwrap();
+        assert_eq!(data1, payload);
+        assert_eq!(data2, payload);
+    }
+
+    #[test]
+    fn test_resume_skips_matching_and_rewrites_divergent() {
+        let iso = temp_test_path("iso_resume");
+        let dev = temp_test_path("dev_resume");
+
+        let payload: Vec<u8> = (0..(5 * 1024 * 1024)).map(|i| ((i * 7) % 253) as u8).collect();
+        let mut partial = payload.clone();
+        // Corrupt the second chunk while keeping the first 4MB chunk identical
+        for byte in partial.iter_mut().skip(4 * 1024 * 1024) {
+            *byte ^= 0xFF;
+        }
+
+        std::fs::write(&iso, &payload).unwrap();
+        std::fs::write(&dev, &partial).unwrap();
+
+        let res = write_iso_to_devices(&iso, std::slice::from_ref(&dev), true, true, None, None);
+        let final_data = std::fs::read(&dev).unwrap();
+
+        let _ = std::fs::remove_file(&iso);
+        let _ = std::fs::remove_file(&dev);
+
+        res.unwrap();
+        assert_eq!(final_data, payload);
+    }
+
+    #[test]
+    fn test_write_cancellation() {
+        let iso = temp_test_path("iso_cancel");
+        let dev = temp_test_path("dev_cancel");
+
+        std::fs::write(&iso, vec![42u8; 1024 * 1024]).unwrap();
+        std::fs::write(&dev, vec![0u8; 1024 * 1024]).unwrap();
+
+        let cancel = Arc::new(AtomicBool::new(true));
+        let res = write_iso_to_devices(
+            &iso,
+            std::slice::from_ref(&dev),
+            false,
+            false,
+            None,
+            Some(cancel),
+        );
+
+        let _ = std::fs::remove_file(&iso);
+        let _ = std::fs::remove_file(&dev);
+
+        let err = res.unwrap_err().to_string();
+        assert!(err.contains("cancelled"), "unexpected error: {}", err);
+    }
+
+    #[test]
+    fn test_write_rejects_empty_iso() {
+        let iso = temp_test_path("iso_empty");
+        let dev = temp_test_path("dev_empty");
+
+        std::fs::write(&iso, b"").unwrap();
+        std::fs::write(&dev, b"").unwrap();
+
+        let res = write_iso_to_devices(&iso, std::slice::from_ref(&dev), false, false, None, None);
+
+        let _ = std::fs::remove_file(&iso);
+        let _ = std::fs::remove_file(&dev);
+
+        assert!(res.is_err());
     }
 }

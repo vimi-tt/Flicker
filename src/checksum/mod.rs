@@ -118,3 +118,33 @@ pub fn verify_iso_cli(iso: &Path, expected: Option<&str>, algorithm_str: &str) -
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_checksum_sha256_and_md5() {
+        let tmp = std::env::temp_dir().join(format!("flicker_hash_{}.bin", std::process::id()));
+        std::fs::write(&tmp, b"hello world").unwrap();
+
+        let sha = calculate_checksum_with_progress(&tmp, ChecksumAlgorithm::Sha256, |_, _| {}).unwrap();
+        let md5 = calculate_checksum_with_progress(&tmp, ChecksumAlgorithm::Md5, |_, _| {}).unwrap();
+
+        let _ = std::fs::remove_file(&tmp);
+
+        assert_eq!(
+            sha,
+            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        );
+        assert_eq!(md5, "5eb63bbbe01eeed093cb22bb8f5acdc3");
+    }
+
+    #[test]
+    fn test_checksum_algorithm_parsing() {
+        assert_eq!(ChecksumAlgorithm::parse("SHA256").unwrap(), ChecksumAlgorithm::Sha256);
+        assert_eq!(ChecksumAlgorithm::parse("sha-256").unwrap(), ChecksumAlgorithm::Sha256);
+        assert_eq!(ChecksumAlgorithm::parse("md5").unwrap(), ChecksumAlgorithm::Md5);
+        assert!(ChecksumAlgorithm::parse("sha1").is_err());
+    }
+}

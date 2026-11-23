@@ -78,3 +78,57 @@ impl Cli {
         Cli::parse()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cli_accepts_singular_and_plural_device_flags() {
+        let cli1 = Cli::try_parse_from([
+            "flicker",
+            "write",
+            "--iso",
+            "ubuntu.iso",
+            "--device",
+            "/dev/sdb",
+            "/dev/sdc",
+            "--verify",
+        ])
+        .unwrap();
+
+        match cli1.command.unwrap() {
+            Commands::Write {
+                iso,
+                devices,
+                verify,
+                ..
+            } => {
+                assert_eq!(iso, PathBuf::from("ubuntu.iso"));
+                assert_eq!(
+                    devices,
+                    vec![PathBuf::from("/dev/sdb"), PathBuf::from("/dev/sdc")]
+                );
+                assert!(verify);
+            }
+            _ => panic!("expected Write command"),
+        }
+
+        let cli2 = Cli::try_parse_from([
+            "flicker",
+            "write",
+            "-i",
+            "arch.iso",
+            "--devices",
+            "/dev/sdd",
+        ])
+        .unwrap();
+
+        match cli2.command.unwrap() {
+            Commands::Write { devices, .. } => {
+                assert_eq!(devices, vec![PathBuf::from("/dev/sdd")]);
+            }
+            _ => panic!("expected Write command"),
+        }
+    }
+}
