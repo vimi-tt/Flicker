@@ -3,8 +3,72 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::process::{Child, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+
+use crate::iso::{inspect_image, Compression};
+
+/// Streaming reader that transparently handles raw images and `.gz`/`.xz`/`.zst` compressed images.
+enum ImageStream {
+    Raw(File),
+    Decompressed { child: Child, stdout: ChildStdout },
+}
+
+impl ImageStream {
+    fn open(path: &Path, compression: Compression) -> Result<Self> {
+        match compression {
+            Compression::None => {
+                let file = File::open(path)
+                    .with_context(|| format!("Failed to open ISO file: {:?}", path))?;
+                Ok(Self::Raw(file))
+            }
+            Compression::Gzip | Compression::Xz | Compression::Zstd => {
+                let bin = match compression {
+                    Compression::Gzip => "gzip",
+                    Compression::Xz => "xz",
+                    Compression::Zstd => "zstd",
+                    Compression::None => unreachable!(),
+                };
+                let mut child = Command::new(bin)
+                    .args(["-dc"])
+                    .arg(path)
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .with_context(|| {
+                        format!(
+                            "Failed to launch '{}' to decompress {:?}. Please install '{}' and retry.",
+                            bin, path, bin
+                        )
+                    })?;
+                let stdout = child
+                    .stdout
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("Failed to capture {} stdout", bin))?;
+                Ok(Self::Decompressed { child, stdout })
+            }
+        }
+    }
+}
+
+impl Read for ImageStream {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match self {
+            Self::Raw(f) => f.read(buf),
+            Self::Decompressed { stdout, .. } => stdout.read(buf),
+        }
+    }
+}
+
+impl Drop for ImageStream {
+    fn drop(&mut self) {
+        if let Self::Decompressed { child, .. } = self {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+}
 
 /// Buffer size for reading/writing (4MB chunks for optimal performance)
 const BUFFER_SIZE: usize = 4 * 1024 * 1024;
@@ -91,9 +155,36 @@ pub fn write_iso_to_devices(
         anyhow::bail!("❌ ISO file is empty (0 bytes): {:?}", iso_path);
     }
 
+    let compression = inspect_image(iso_path)
+        .map(|i| i.compression)
+        .unwrap_or(Compression::None);
+
+    let effective_resume = if compression != Compression::None && resume {
+        emit_log(
+            &tx,
+            format!(
+                "   ℹ️  Resume mode is disabled for compressed {} streams.",
+                compression.label()
+            ),
+        );
+        false
+    } else {
+        resume
+    };
+
+    if compression != Compression::None {
+        emit_log(
+            &tx,
+            format!(
+                "   Compressed image ({}) — streaming decompression on the fly",
+                compression.label()
+            ),
+        );
+    }
+
     emit_log(
         &tx,
-        format!("   ISO size: {}", crate::utils::format_size(iso_size)),
+        format!("   Source size: {}", crate::utils::format_size(iso_size)),
     );
 
     let total_target_bytes = iso_size.saturating_mul(device_paths.len() as u64);
@@ -132,8 +223,9 @@ pub fn write_iso_to_devices(
                 write_single_device(
                     iso_path,
                     iso_size,
+                    compression,
                     dev_path,
-                    resume,
+                    effective_resume,
                     &counter,
                     &all_counters,
                     total_target_bytes,
@@ -184,7 +276,7 @@ pub fn write_iso_to_devices(
                 anyhow::bail!("Operation cancelled by user");
             }
             emit_log(&tx, format!("   Verifying {:?}...", dev_path));
-            verify_write(iso_path, dev_path, iso_size, tx.clone(), cancel.clone())?;
+            verify_write(iso_path, dev_path, iso_size, compression, tx.clone(), cancel.clone())?;
         }
         emit_log(&tx, "✓ Verification completed successfully".to_string());
     }
@@ -205,6 +297,7 @@ pub fn write_iso_to_devices(
 fn write_single_device(
     iso_path: &Path,
     iso_size: u64,
+    compression: Compression,
     dev_path: &Path,
     resume: bool,
     my_counter: &AtomicU64,
@@ -218,8 +311,7 @@ fn write_single_device(
 ) -> Result<()> {
     emit_log(tx, format!("   Opening device: {:?}", dev_path));
 
-    let mut iso_file = File::open(iso_path)
-        .with_context(|| format!("Failed to open ISO file: {:?}", iso_path))?;
+    let mut iso_stream = ImageStream::open(iso_path, compression)?;
 
     let mut dev_file = OpenOptions::new()
         .read(resume)
@@ -244,9 +336,9 @@ fn write_single_device(
             anyhow::bail!("Operation cancelled by user");
         }
 
-        let bytes_read = iso_file
+        let bytes_read = iso_stream
             .read(&mut iso_buffer)
-            .context("Failed to read from ISO file")?;
+            .context("Failed to read from image source")?;
 
         if bytes_read == 0 {
             break;
@@ -368,6 +460,7 @@ fn verify_write(
     iso_path: &Path,
     device_path: &Path,
     iso_size: u64,
+    compression: Compression,
     tx: Option<std::sync::mpsc::Sender<ProgressMsg>>,
     cancel: Option<Arc<AtomicBool>>,
 ) -> Result<()> {
@@ -375,8 +468,8 @@ fn verify_write(
         anyhow::bail!("Cannot verify empty ISO (0 bytes)");
     }
 
-    let mut iso_file =
-        File::open(iso_path).context("Failed to open ISO file for verification")?;
+    let mut iso_stream = ImageStream::open(iso_path, compression)
+        .context("Failed to open image source for verification")?;
 
     let mut device_file =
         File::open(device_path).context("Failed to open device for verification")?;
@@ -424,9 +517,9 @@ fn verify_write(
             anyhow::bail!("Operation cancelled by user");
         }
 
-        let iso_read = iso_file
+        let iso_read = iso_stream
             .read(&mut iso_buffer)
-            .context("Failed to read from ISO during verification")?;
+            .context("Failed to read from image source during verification")?;
 
         if iso_read == 0 {
             break;
@@ -628,5 +721,38 @@ mod tests {
         let _ = std::fs::remove_file(&dev);
 
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_write_and_verify_gzip_compressed_image() {
+        // Skip only if gzip binary is unavailable on host
+        if Command::new("gzip").arg("--version").output().is_err() {
+            return;
+        }
+
+        let raw = temp_test_path("raw_for_gz");
+        let gz = temp_test_path("img_for_gz.img.gz");
+        let dev = temp_test_path("dev_from_gz");
+
+        let payload: Vec<u8> = (0..(2 * 1024 * 1024)).map(|i| ((i * 13) % 251) as u8).collect();
+        std::fs::write(&raw, &payload).unwrap();
+        let compressed = Command::new("gzip")
+            .args(["-c"])
+            .arg(&raw)
+            .output()
+            .unwrap();
+        assert!(compressed.status.success());
+        std::fs::write(&gz, &compressed.stdout).unwrap();
+        std::fs::write(&dev, vec![0u8; payload.len()]).unwrap();
+
+        let res = write_iso_to_devices(&gz, std::slice::from_ref(&dev), true, false, None, None);
+        let written = std::fs::read(&dev).unwrap();
+
+        let _ = std::fs::remove_file(&raw);
+        let _ = std::fs::remove_file(&gz);
+        let _ = std::fs::remove_file(&dev);
+
+        res.unwrap();
+        assert_eq!(written, payload);
     }
 }

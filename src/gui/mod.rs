@@ -111,6 +111,23 @@ pub fn run_gui() -> Result<()> {
 
     refresh_device_list(&app, &state);
 
+    // Hotplug USB watcher: auto-refresh device list when drives are plugged/unplugged
+    {
+        let app_weak_hotplug = app_weak.clone();
+        let state_hotplug = Arc::clone(&state);
+        crate::usb::spawn_usb_hotplug_watcher(move || {
+            let app_u = app_weak_hotplug.clone();
+            let st_u = Arc::clone(&state_hotplug);
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = app_u.upgrade() {
+                    if !app.get_is_flashing() {
+                        refresh_device_list(&app, &st_u);
+                    }
+                }
+            });
+        });
+    }
+
     // Refresh devices
     {
         let app_weak = app_weak.clone();
@@ -144,7 +161,7 @@ pub fn run_gui() -> Result<()> {
         let state = Arc::clone(&state);
         app.on_select_iso(move || {
             if let Some(path) = rfd::FileDialog::new()
-                .add_filter("Disk Images", &["iso", "img"])
+                .add_filter("Disk Images", &["iso", "img", "gz", "xz", "zst"])
                 .pick_file()
             {
                 let size_str = std::fs::metadata(&path)

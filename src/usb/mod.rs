@@ -221,3 +221,61 @@ pub fn display_devices(devices: &[UsbDevice], verbose: bool) {
         println!("   Flicker will automatically unmount them before writing");
     }
 }
+
+/// Spawn a background watcher that invokes `on_change` whenever a block device is added or removed.
+///
+/// Uses `udevadm monitor --udev --subsystem-match=block` when available, falling back to
+/// lightweight `/sys/block` polling.
+#[cfg(feature = "gui")]
+pub fn spawn_usb_hotplug_watcher(on_change: impl Fn() + Send + 'static) {
+    use std::io::{BufRead, BufReader};
+    use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
+
+    std::thread::spawn(move || {
+        if let Ok(mut child) = Command::new("udevadm")
+            .args(["monitor", "--udev", "--subsystem-match=block"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            if let Some(stdout) = child.stdout.take() {
+                let reader = BufReader::new(stdout);
+                let mut last_notify = Instant::now() - Duration::from_secs(10);
+                for line in reader.lines().map_while(Result::ok) {
+                    if (line.contains(" add ") || line.contains(" remove "))
+                        && last_notify.elapsed() >= Duration::from_millis(500)
+                    {
+                        last_notify = Instant::now();
+                        // Give kernel/sysfs a moment to settle device nodes and mount points
+                        std::thread::sleep(Duration::from_millis(400));
+                        on_change();
+                    }
+                }
+            }
+            let _ = child.kill();
+            let _ = child.wait();
+            return;
+        }
+
+        // Fallback: poll `/sys/block` every 2 seconds
+        let mut prev_snapshot: Vec<String> = Vec::new();
+        loop {
+            std::thread::sleep(Duration::from_secs(2));
+            let mut current: Vec<String> = std::fs::read_dir("/sys/block")
+                .ok()
+                .map(|entries| {
+                    entries
+                        .flatten()
+                        .map(|e| e.file_name().to_string_lossy().into_owned())
+                        .collect()
+                })
+                .unwrap_or_default();
+            current.sort();
+            if current != prev_snapshot {
+                prev_snapshot = current;
+                on_change();
+            }
+        }
+    });
+}

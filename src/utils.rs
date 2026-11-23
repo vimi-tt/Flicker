@@ -62,8 +62,8 @@ pub fn validate_iso_file(iso_path: &Path) -> Result<()> {
     // Optional: Check file extension
     if let Some(ext) = iso_path.extension() {
         let ext_lower = ext.to_string_lossy().to_lowercase();
-        if ext_lower != "iso" && ext_lower != "img" {
-            println!("⚠️  Warning: File extension is not .iso or .img");
+        if !matches!(ext_lower.as_str(), "iso" | "img" | "gz" | "xz" | "zst") {
+            println!("⚠️  Warning: File extension is not .iso, .img, .gz, .xz, or .zst");
         }
     }
     
