@@ -54,6 +54,22 @@ pub enum Commands {
         #[arg(short = 'a', long, default_value = "sha256")]
         algorithm: String,
     },
+
+    /// Internal privileged helper invoked by the GUI via pkexec
+    #[command(hide = true)]
+    InternalWrite {
+        #[arg(long, value_name = "FILE")]
+        iso: PathBuf,
+
+        #[arg(short = 'd', long = "device", alias = "devices", value_name = "DEVICE", num_args = 1..)]
+        devices: Vec<PathBuf>,
+
+        #[arg(long)]
+        verify: bool,
+
+        #[arg(long)]
+        resume: bool,
+    },
 }
 
 impl Cli {

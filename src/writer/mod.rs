@@ -165,7 +165,7 @@ pub fn write_iso_to_devices(
 
     // Collect per-device errors without aborting sibling devices prematurely
     let mut errors = Vec::new();
-    for (dev_path, res) in device_paths.iter().zip(results.into_iter()) {
+    for (dev_path, res) in device_paths.iter().zip(results) {
         if let Err(e) = res {
             errors.push(format!("{}: {}", dev_path.display(), e));
         }
@@ -297,11 +297,10 @@ fn write_single_device(
             pb.set_position(aggregate);
         }
 
-        let percent = if total_target_bytes > 0 {
-            (aggregate.saturating_mul(100)) / total_target_bytes
-        } else {
-            100
-        };
+        let percent = aggregate
+            .saturating_mul(100)
+            .checked_div(total_target_bytes)
+            .unwrap_or(100);
 
         let prev = last_reported_percent.load(Ordering::Relaxed);
         if (percent >= prev + 2 || aggregate >= total_target_bytes)
