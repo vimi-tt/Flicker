@@ -104,7 +104,7 @@ Please report any issues or suggestions on our GitHub Issues page!
 
 ---
 
-[Unreleased]: https://github.com/yourusername/flicker/compare/v0.1.0-beta.2...HEAD
-[0.1.0-beta.2]: https://github.com/yourusername/flicker/compare/v0.1.0-beta.1...v0.1.0-beta.2
-[0.1.0-beta.1]: https://github.com/yourusername/flicker/releases/tag/v0.1.0-beta.1
-[0.0.1]: https://github.com/yourusername/flicker/releases/tag/v0.0.1
+[Unreleased]: https://github.com/vimi-tt/Flicker/compare/v0.1.0-beta.2...HEAD
+[0.1.0-beta.2]: https://github.com/vimi-tt/Flicker/compare/v0.1.0-beta.1...v0.1.0-beta.2
+[0.1.0-beta.1]: https://github.com/vimi-tt/Flicker/releases/tag/v0.1.0-beta.1
+[0.0.1]: https://github.com/vimi-tt/Flicker/releases/tag/v0.0.1

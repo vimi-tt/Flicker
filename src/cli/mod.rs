@@ -2,10 +2,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "flicker")]
-#[command(author = "Your Name")]
-#[command(version = "0.1.0")]
-#[command(about = "A Rufus alternative for Linux written in Rust", long_about = None)]
+#[command(name = "flicker", author, version, about, long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
@@ -26,8 +23,8 @@ pub enum Commands {
         #[arg(short, long, value_name = "FILE")]
         iso: PathBuf,
 
-        /// Target devices (e.g., /dev/sdb /dev/sdc)
-        #[arg(short, long, value_name = "DEVICE", num_args = 1..)]
+        /// Target device(s) (e.g., /dev/sdb /dev/sdc)
+        #[arg(short = 'd', long = "device", alias = "devices", value_name = "DEVICE", num_args = 1..)]
         devices: Vec<PathBuf>,
 
         /// Skip confirmation prompt

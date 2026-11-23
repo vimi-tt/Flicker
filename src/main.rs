@@ -6,6 +6,7 @@ mod writer;
 use cli::{Cli, Commands};
 use anyhow::Result;
 
+#[cfg(feature = "gui")]
 slint::include_modules!();
 
 fn main() -> Result<()> {
@@ -56,12 +57,20 @@ fn main() -> Result<()> {
             }
         }
     } else {
-        run_gui()?;
+        #[cfg(feature = "gui")]
+        {
+            run_gui()?;
+        }
+        #[cfg(not(feature = "gui"))]
+        {
+            anyhow::bail!("GUI support is disabled in this build. Run 'flicker --help' for CLI usage or rebuild with '--features gui'.");
+        }
     }
 
     Ok(())
 }
 
+#[cfg(feature = "gui")]
 fn require_root_or_pkexec() {
     if unsafe { libc::geteuid() } != 0 {
         println!("Elevating privileges via pkexec...");
@@ -121,6 +130,7 @@ fn require_root_or_pkexec() {
     }
 }
 
+#[cfg(feature = "gui")]
 fn run_gui() -> Result<()> {
     require_root_or_pkexec();
 
@@ -218,6 +228,7 @@ fn run_gui() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "gui")]
 fn update_devices(app: &AppWindow) {
     let mut slint_devices = Vec::new();
     if let Ok(devices) = crate::usb::list_usb_devices() {
