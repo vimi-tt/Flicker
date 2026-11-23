@@ -2,6 +2,7 @@ mod checksum;
 mod cli;
 #[cfg(feature = "gui")]
 mod gui;
+mod iso;
 mod usb;
 mod utils;
 mod writer;
@@ -55,6 +56,19 @@ fn main() -> Result<()> {
                 }
 
                 checksum::verify_iso_cli(&iso, checksum.as_deref(), &algorithm)?;
+            }
+
+            Commands::Inspect { iso } => {
+                let info = iso::inspect_image(&iso)?;
+                println!("🔎 Image Inspection: {}", iso.display());
+                println!("   Type:             {}", info.kind.label());
+                println!("   Volume Label:     {}", info.volume_label);
+                println!("   Compression:      {}", info.compression.label());
+                println!("   Hybrid (MBR+ISO): {}", if info.is_hybrid { "Yes" } else { "No" });
+                println!("   El Torito Boot:   {}", if info.is_el_torito { "Yes" } else { "No" });
+                println!("   UDF Filesystem:   {}", if info.is_udf { "Yes" } else { "No" });
+                println!("   Summary:          {}", info.summary);
+                println!("   Recommended Mode: {:?}", info.recommended_mode);
             }
 
             Commands::InternalWrite {

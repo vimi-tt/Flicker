@@ -55,6 +55,13 @@ pub enum Commands {
         algorithm: String,
     },
 
+    /// Inspect an ISO/IMG file and display detected image type, volume label, and boot capabilities
+    Inspect {
+        /// Path to the image file (.iso, .img, .gz, .xz, .zst)
+        #[arg(short, long, value_name = "FILE")]
+        iso: PathBuf,
+    },
+
     /// Internal privileged helper invoked by the GUI via pkexec
     #[command(hide = true)]
     InternalWrite {
