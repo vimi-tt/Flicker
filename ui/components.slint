@@ -1,0 +1,439 @@
+import { HorizontalBox, VerticalBox } from "std-widgets.slint";
+import { M3Theme } from "theme.slint";
+
+/// M3 Expressive Connected Segmented Button (2 options).
+/// Communicates selection through container tone, shape emphasis, and an explicit checkmark (non-color cue).
+export component M3Segmented2 inherits Rectangle {
+    in property <string> option-a;
+    in property <string> option-b;
+    in property <string> value-a;
+    in property <string> value-b;
+    in-out property <string> current-value;
+    in property <bool> enabled: true;
+
+    height: 40px;
+    border-radius: M3Theme.shape-full;
+    border-width: 1px;
+    border-color: M3Theme.outline-variant;
+    background: M3Theme.surface-container-low;
+    clip: true;
+
+    HorizontalLayout {
+        padding: 3px;
+        spacing: 4px;
+
+        // Option A
+        Rectangle {
+            horizontal-stretch: 1;
+            property <bool> selected: root.current-value == root.value-a;
+            border-radius: selected ? M3Theme.shape-full : M3Theme.shape-md;
+            background: selected
+                ? M3Theme.secondary-container
+                : (ta-a.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
+            animate background { duration: M3Theme.motion-fast; }
+            animate border-radius { duration: M3Theme.motion-standard; }
+
+            ta-a := TouchArea {
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
+                clicked => { root.current-value = root.value-a; }
+            }
+
+            Text {
+                text: (parent.selected ? "✓ " : "") + root.option-a;
+                color: parent.selected ? M3Theme.on-secondary-container : M3Theme.on-surface;
+                font-size: M3Theme.label-md;
+                font-weight: parent.selected ? 700 : 500;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                opacity: root.enabled ? 1.0 : 0.45;
+            }
+        }
+
+        // Option B
+        Rectangle {
+            horizontal-stretch: 1;
+            property <bool> selected: root.current-value == root.value-b;
+            border-radius: selected ? M3Theme.shape-full : M3Theme.shape-md;
+            background: selected
+                ? M3Theme.secondary-container
+                : (ta-b.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
+            animate background { duration: M3Theme.motion-fast; }
+            animate border-radius { duration: M3Theme.motion-standard; }
+
+            ta-b := TouchArea {
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
+                clicked => { root.current-value = root.value-b; }
+            }
+
+            Text {
+                text: (parent.selected ? "✓ " : "") + root.option-b;
+                color: parent.selected ? M3Theme.on-secondary-container : M3Theme.on-surface;
+                font-size: M3Theme.label-md;
+                font-weight: parent.selected ? 700 : 500;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                opacity: root.enabled ? 1.0 : 0.45;
+            }
+        }
+    }
+}
+
+/// M3 Expressive Connected Segmented Button (3 options).
+export component M3Segmented3 inherits Rectangle {
+    in property <string> option-a;
+    in property <string> option-b;
+    in property <string> option-c;
+    in property <string> value-a;
+    in property <string> value-b;
+    in property <string> value-c;
+    in-out property <string> current-value;
+    in property <bool> enabled: true;
+
+    height: 38px;
+    border-radius: M3Theme.shape-full;
+    border-width: 1px;
+    border-color: M3Theme.outline-variant;
+    background: M3Theme.surface-container-low;
+    clip: true;
+
+    HorizontalLayout {
+        padding: 3px;
+        spacing: 3px;
+
+        Rectangle {
+            horizontal-stretch: 1;
+            property <bool> selected: root.current-value == root.value-a;
+            border-radius: selected ? M3Theme.shape-full : M3Theme.shape-sm;
+            background: selected
+                ? M3Theme.secondary-container
+                : (ta3-a.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
+            animate background { duration: M3Theme.motion-fast; }
+            animate border-radius { duration: M3Theme.motion-standard; }
+
+            ta3-a := TouchArea {
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
+                clicked => { root.current-value = root.value-a; }
+            }
+
+            Text {
+                text: (parent.selected ? "✓ " : "") + root.option-a;
+                color: parent.selected ? M3Theme.on-secondary-container : M3Theme.on-surface;
+                font-size: M3Theme.label-md;
+                font-weight: parent.selected ? 700 : 500;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                opacity: root.enabled ? 1.0 : 0.45;
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            property <bool> selected: root.current-value == root.value-b;
+            border-radius: selected ? M3Theme.shape-full : M3Theme.shape-sm;
+            background: selected
+                ? M3Theme.secondary-container
+                : (ta3-b.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
+            animate background { duration: M3Theme.motion-fast; }
+            animate border-radius { duration: M3Theme.motion-standard; }
+
+            ta3-b := TouchArea {
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
+                clicked => { root.current-value = root.value-b; }
+            }
+
+            Text {
+                text: (parent.selected ? "✓ " : "") + root.option-b;
+                color: parent.selected ? M3Theme.on-secondary-container : M3Theme.on-surface;
+                font-size: M3Theme.label-md;
+                font-weight: parent.selected ? 700 : 500;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                opacity: root.enabled ? 1.0 : 0.45;
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            property <bool> selected: root.current-value == root.value-c;
+            border-radius: selected ? M3Theme.shape-full : M3Theme.shape-sm;
+            background: selected
+                ? M3Theme.secondary-container
+                : (ta3-c.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
+            animate background { duration: M3Theme.motion-fast; }
+            animate border-radius { duration: M3Theme.motion-standard; }
+
+            ta3-c := TouchArea {
+                enabled: root.enabled;
+                mouse-cursor: root.enabled ? pointer : default;
+                clicked => { root.current-value = root.value-c; }
+            }
+
+            Text {
+                text: (parent.selected ? "✓ " : "") + root.option-c;
+                color: parent.selected ? M3Theme.on-secondary-container : M3Theme.on-surface;
+                font-size: M3Theme.label-md;
+                font-weight: parent.selected ? 700 : 500;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                opacity: root.enabled ? 1.0 : 0.45;
+            }
+        }
+    }
+}
+
+/// M3 Expressive Primary CTA with shape-morphing press feedback and destructive/cancel tone support.
+export component M3ExpressiveButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    in property <bool> destructive: false;
+    in property <bool> tonal: false;
+    callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+
+    height: 52px;
+    border-radius: ta.pressed && root.enabled
+        ? M3Theme.shape-lg
+        : (root.destructive ? M3Theme.shape-lg : M3Theme.shape-xxl);
+    background: !root.enabled
+        ? M3Theme.surface-container-highest
+        : (root.destructive
+            ? M3Theme.error
+            : (root.tonal ? M3Theme.secondary-container : M3Theme.primary));
+
+    animate border-radius { duration: M3Theme.motion-fast; easing: cubic-bezier(0.2, 0, 0, 1); }
+    animate background { duration: M3Theme.motion-standard; }
+
+    // State layer overlay
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        border-radius: parent.border-radius;
+        background: ta.pressed && root.enabled
+            ? M3Theme.press-tint
+            : (ta.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
+        animate background { duration: M3Theme.motion-fast; }
+    }
+
+    Text {
+        text: root.text;
+        color: !root.enabled
+            ? M3Theme.on-surface-variant
+            : (root.destructive
+                ? M3Theme.on-error
+                : (root.tonal ? M3Theme.on-secondary-container : M3Theme.on-primary));
+        font-size: M3Theme.title-md;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        opacity: root.enabled ? 1.0 : 0.55;
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+}
+
+/// M3 Tonal / Outlined / Destructive compact utility button (Refresh, Select, Verify, Cancel, Erase).
+export component M3CompactButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    in property <bool> outlined: false;
+    in property <bool> destructive: false;
+    callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+
+    height: 36px;
+    min-width: 76px;
+    border-radius: ta.pressed && root.enabled ? M3Theme.shape-sm : M3Theme.shape-full;
+    border-width: root.outlined ? 1px : 0px;
+    border-color: M3Theme.outline;
+    background: !root.enabled
+        ? M3Theme.surface-container-highest
+        : (root.destructive
+            ? M3Theme.error
+            : (root.outlined ? transparent : M3Theme.secondary-container));
+
+    animate border-radius { duration: M3Theme.motion-fast; }
+    animate background { duration: M3Theme.motion-fast; }
+
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        border-radius: parent.border-radius;
+        background: ta.pressed && root.enabled
+            ? M3Theme.press-tint
+            : (ta.has-hover && root.enabled ? M3Theme.hover-tint : transparent);
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        Text {
+            text: root.text;
+            color: !root.enabled
+                ? M3Theme.on-surface-variant
+                : (root.destructive
+                    ? M3Theme.on-error
+                    : (root.outlined ? M3Theme.on-surface : M3Theme.on-secondary-container));
+            font-size: M3Theme.label-lg;
+            font-weight: 600;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            opacity: root.enabled ? 1.0 : 0.5;
+        }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+}
+
+/// M3 Expressive selectable device row (>= 48px target height, shape-morphing selection).
+export component M3DeviceRow inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected: false;
+    in property <bool> enabled: true;
+    callback toggled();
+
+    accessible-role: checkbox;
+    accessible-label: root.label;
+    accessible-checked: root.selected;
+    accessible-enabled: root.enabled;
+
+    min-height: 48px;
+    border-radius: root.selected ? M3Theme.shape-lg : M3Theme.shape-sm;
+    border-width: root.selected ? 1.5px : 1px;
+    border-color: root.selected ? M3Theme.primary : M3Theme.outline-variant;
+    background: root.selected
+        ? M3Theme.primary-container
+        : (ta.has-hover && root.enabled ? M3Theme.surface-container-high : M3Theme.surface-container-lowest);
+
+    animate border-radius { duration: M3Theme.motion-standard; easing: cubic-bezier(0.2, 0, 0, 1); }
+    animate background { duration: M3Theme.motion-fast; }
+    animate border-color { duration: M3Theme.motion-fast; }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.toggled(); }
+    }
+
+    HorizontalBox {
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        spacing: 10px;
+        alignment: start;
+
+        // Explicit non-color selection badge
+        Rectangle {
+            width: 22px;
+            height: 22px;
+            border-radius: root.selected ? M3Theme.shape-full : M3Theme.shape-xs;
+            border-width: root.selected ? 0px : 1.5px;
+            border-color: M3Theme.outline;
+            background: root.selected ? M3Theme.primary : transparent;
+            animate border-radius { duration: M3Theme.motion-fast; }
+
+            Text {
+                text: root.selected ? "✓" : "";
+                color: M3Theme.on-primary;
+                font-size: 13px;
+                font-weight: 800;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: root.selected ? M3Theme.on-primary-container : M3Theme.on-surface;
+            font-size: M3Theme.body-md;
+            font-weight: root.selected ? 600 : 400;
+            vertical-alignment: center;
+            wrap: word-wrap;
+            horizontal-stretch: 1;
+            opacity: root.enabled ? 1.0 : 0.55;
+        }
+    }
+}
+
+/// M3 Expressive Linear Progress Card with semantic state colors (Active / Success / Error).
+export component M3ProgressCard inherits Rectangle {
+    in property <string> status-text;
+    in property <float> progress: 0.0;
+    in property <bool> has-error: false;
+    in property <bool> is-success: false;
+
+    border-radius: M3Theme.shape-xl;
+    background: root.has-error
+        ? M3Theme.error-container
+        : (root.is-success ? M3Theme.tertiary-container : M3Theme.surface-container-high);
+    animate background { duration: M3Theme.motion-emphasized; }
+
+    VerticalBox {
+        padding: 14px;
+        spacing: 10px;
+
+        HorizontalBox {
+            padding: 0px;
+            spacing: 8px;
+
+            Text {
+                text: root.status-text;
+                color: root.has-error
+                    ? M3Theme.on-error-container
+                    : (root.is-success ? M3Theme.on-tertiary-container : M3Theme.on-surface);
+                font-size: M3Theme.title-sm;
+                font-weight: 700;
+                horizontal-stretch: 1;
+                wrap: word-wrap;
+            }
+
+            Text {
+                text: Math.round(Math.clamp(root.progress, 0.0, 1.0) * 100) + "%";
+                color: root.has-error
+                    ? M3Theme.on-error-container
+                    : (root.is-success ? M3Theme.on-tertiary-container : M3Theme.primary);
+                font-size: M3Theme.title-sm;
+                font-weight: 800;
+            }
+        }
+
+        // Expressive pill track + animated indicator
+        Rectangle {
+            height: 12px;
+            border-radius: M3Theme.shape-full;
+            background: M3Theme.surface-container-lowest;
+            clip: true;
+
+            Rectangle {
+                x: 0px;
+                y: 0px;
+                height: 100%;
+                width: parent.width * Math.clamp(root.progress, 0.0, 1.0);
+                border-radius: M3Theme.shape-full;
+                background: root.has-error
+                    ? M3Theme.error
+                    : (root.is-success ? M3Theme.tertiary : M3Theme.primary);
+                animate width { duration: M3Theme.motion-standard; easing: cubic-bezier(0.2, 0, 0, 1); }
+                animate background { duration: M3Theme.motion-standard; }
+            }
+        }
+    }
+}

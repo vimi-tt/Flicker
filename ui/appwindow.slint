@@ -1,4 +1,6 @@
-import { Button, CheckBox, ComboBox, HorizontalBox, LineEdit, Palette, ProgressIndicator, ScrollView, TextEdit, VerticalBox } from "std-widgets.slint";
+import { CheckBox, ComboBox, HorizontalBox, LineEdit, ScrollView, TextEdit, VerticalBox } from "std-widgets.slint";
+import { M3Theme } from "theme.slint";
+import { M3CompactButton, M3DeviceRow, M3ExpressiveButton, M3ProgressCard, M3Segmented2, M3Segmented3 } from "components.slint";
 
 export struct DeviceItem {
     label: string,
@@ -6,10 +8,11 @@ export struct DeviceItem {
 }
 
 export component AppWindow inherits Window {
-    title: "Flicker - Rufus-Style USB Creator for Linux";
+    title: "Flicker — USB Creator";
     icon: @image-url("../Flicker.png");
-    preferred-width: 920px;
-    preferred-height: 660px;
+    background: M3Theme.surface;
+    preferred-width: 960px;
+    preferred-height: 680px;
     min-width: 760px;
     min-height: 560px;
 
@@ -53,6 +56,8 @@ export component AppWindow inherits Window {
     // Operation state
     in-out property <bool> is_flashing: false;
     in-out property <bool> show_progress: false;
+    in-out property <bool> has_error: false;
+    in-out property <bool> is_success: false;
     in-out property <string> status_text: "Ready";
     in property <float> progress_value: 0.0;
     in property <string> terminal_logs: "";
@@ -69,460 +74,580 @@ export component AppWindow inherits Window {
     callback cancel_action();
     callback reset_progress();
 
-    HorizontalBox {
-        padding: 18px;
-        spacing: 18px;
+    VerticalBox {
+        padding: 16px;
+        spacing: 14px;
 
-        // Left Column: Device, Boot Selection, Image, Primary Button
-        VerticalBox {
-            horizontal-stretch: 1;
-            min-width: 320px;
+        // Expressive Top Header (brand emphasis + semantic state pill)
+        HorizontalBox {
+            padding-left: 6px;
+            padding-right: 6px;
+            padding-top: 2px;
+            padding-bottom: 2px;
             spacing: 12px;
 
-            Text {
-                text: "Flicker";
-                font-size: 26px;
-                font-weight: 700;
-                horizontal-alignment: center;
-            }
+            VerticalLayout {
+                spacing: 2px;
+                horizontal-stretch: 1;
 
-            // 1. Target USB Device(s)
-            VerticalBox {
-                spacing: 6px;
-                padding: 0px;
-                vertical-stretch: 1;
-
-                HorizontalBox {
-                    padding: 0px;
-                    spacing: 8px;
-
-                    Text {
-                        text: "1. Device (auto-detects USB hotplug)";
-                        font-weight: 600;
-                        vertical-alignment: center;
-                        horizontal-stretch: 1;
-                    }
-
-                    Button {
-                        text: "Refresh";
-                        enabled: !root.is_flashing;
-                        clicked => { root.refresh_devices(); }
-                    }
+                Text {
+                    text: "Flicker";
+                    color: M3Theme.on-surface;
+                    font-size: M3Theme.headline-sm;
+                    font-weight: 800;
                 }
 
-                Rectangle {
-                    border-width: 1px;
-                    border-color: Palette.border;
-                    border-radius: 8px;
-                    background: Palette.alternate-background;
-                    vertical-stretch: 1;
-                    min-height: 110px;
+                Text {
+                    text: "Linux & Windows Bootable USB Creator";
+                    color: M3Theme.on-surface-variant;
+                    font-size: M3Theme.body-sm;
+                }
+            }
 
-                    if !root.has_devices: Text {
-                        text: "No USB storage devices found.\nPlug in a USB drive (auto-refreshes) or click Refresh.";
-                        horizontal-alignment: center;
+            // Semantic state pill (communicates state via text + tone, never color alone)
+            Rectangle {
+                height: 32px;
+                border-radius: M3Theme.shape-full;
+                background: root.has_error
+                    ? M3Theme.error-container
+                    : (root.is_success
+                        ? M3Theme.tertiary-container
+                        : (root.is_flashing ? M3Theme.primary-container : M3Theme.surface-container-high));
+                animate background { duration: M3Theme.motion-standard; }
+
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    Text {
+                        text: root.has_error
+                            ? "Error"
+                            : (root.is_success
+                                ? "Completed"
+                                : (root.is_flashing ? "Working..." : "Ready"));
+                        color: root.has_error
+                            ? M3Theme.on-error-container
+                            : (root.is_success
+                                ? M3Theme.on-tertiary-container
+                                : (root.is_flashing ? M3Theme.on-primary-container : M3Theme.on-surface-variant));
+                        font-size: M3Theme.label-md;
+                        font-weight: 700;
                         vertical-alignment: center;
-                        wrap: word-wrap;
-                        opacity: 0.7;
-                        width: parent.width - 24px;
+                    }
+                }
+            }
+        }
+
+        // Canonical M3 Two-Pane Workspace (Primary Setup Pane + Calm Supporting Options/Activity Pane)
+        HorizontalBox {
+            padding: 0px;
+            spacing: 16px;
+            vertical-stretch: 1;
+
+            // LEFT PANE: Contained Primary Setup Surface (`surface-container-low`, shape-xl)
+            Rectangle {
+                horizontal-stretch: 1;
+                min-width: 340px;
+                border-radius: M3Theme.shape-xl;
+                background: M3Theme.surface-container-low;
+
+                VerticalBox {
+                    padding: 18px;
+                    spacing: 16px;
+
+                    // Step 1: Boot Selection (M3 Expressive Segmented Group)
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        Text {
+                            text: "Boot Selection";
+                            color: M3Theme.on-surface-variant;
+                            font-size: M3Theme.label-lg;
+                            font-weight: 700;
+                        }
+
+                        M3Segmented2 {
+                            option-a: "ISO / Disk Image";
+                            value-a: "Disk or ISO image";
+                            option-b: "Format Only";
+                            value-b: "Non-bootable (Format only)";
+                            current-value <=> root.boot_selection;
+                            enabled: !root.is_flashing;
+                        }
                     }
 
-                    if root.has_devices: ScrollView {
-                        width: 100%;
-                        height: 100%;
+                    // Step 2: Target USB Devices (clean list container — no nested card noise)
+                    VerticalLayout {
+                        spacing: 8px;
+                        vertical-stretch: 1;
 
-                        VerticalBox {
-                            padding: 8px;
-                            spacing: 6px;
-                            alignment: start;
+                        HorizontalLayout {
+                            spacing: 8px;
 
-                            for item[idx] in root.device_items: CheckBox {
-                                text: item.label;
-                                checked: item.selected;
+                            Text {
+                                text: "Target USB Drive(s)";
+                                color: M3Theme.on-surface-variant;
+                                font-size: M3Theme.label-lg;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                                horizontal-stretch: 1;
+                            }
+
+                            M3CompactButton {
+                                text: "Refresh";
+                                outlined: true;
                                 enabled: !root.is_flashing;
-                                toggled => { root.toggle_device(idx); }
+                                clicked => { root.refresh_devices(); }
+                            }
+                        }
+
+                        Rectangle {
+                            border-radius: M3Theme.shape-lg;
+                            background: M3Theme.surface-container;
+                            vertical-stretch: 1;
+                            min-height: 120px;
+
+                            if !root.has_devices: VerticalLayout {
+                                alignment: center;
+                                padding: 16px;
+                                spacing: 4px;
+
+                                Text {
+                                    text: "No USB drives detected";
+                                    color: M3Theme.on-surface;
+                                    font-size: M3Theme.title-sm;
+                                    font-weight: 600;
+                                    horizontal-alignment: center;
+                                }
+
+                                Text {
+                                    text: "Plug in a USB drive — Flicker refreshes automatically.";
+                                    color: M3Theme.on-surface-variant;
+                                    font-size: M3Theme.body-sm;
+                                    horizontal-alignment: center;
+                                    wrap: word-wrap;
+                                }
+                            }
+
+                            if root.has_devices: ScrollView {
+                                width: 100%;
+                                height: 100%;
+
+                                VerticalBox {
+                                    padding: 8px;
+                                    spacing: 6px;
+                                    alignment: start;
+
+                                    for item[idx] in root.device_items: M3DeviceRow {
+                                        label: item.label;
+                                        selected: item.selected;
+                                        enabled: !root.is_flashing;
+                                        toggled => { root.toggle_device(idx); }
+                                    }
+                                }
                             }
                         }
                     }
-                }
-            }
 
-            // 2. Boot Selection (Rufus-style)
-            VerticalBox {
-                spacing: 6px;
-                padding: 0px;
+                    // Step 3: Source Image (only in Image mode)
+                    if root.boot_selection == "Disk or ISO image": VerticalLayout {
+                        spacing: 8px;
 
-                Text {
-                    text: "2. Boot Selection";
-                    font-weight: 600;
-                }
-
-                ComboBox {
-                    model: ["Disk or ISO image", "Non-bootable (Format only)"];
-                    current-value <=> root.boot_selection;
-                    enabled: !root.is_flashing;
-                }
-            }
-
-            // 3. Source Image (visible when Disk or ISO image is selected)
-            if root.boot_selection == "Disk or ISO image": VerticalBox {
-                spacing: 6px;
-                padding: 0px;
-
-                Text {
-                    text: "3. Image File (.iso / .img / .gz / .xz / .zst)";
-                    font-weight: 600;
-                }
-
-                HorizontalBox {
-                    padding: 0px;
-                    spacing: 8px;
-
-                    LineEdit {
-                        text: root.has_valid_iso ? root.selected_iso : "No image selected";
-                        read-only: true;
-                        horizontal-stretch: 1;
-                    }
-
-                    Button {
-                        text: "SELECT";
-                        enabled: !root.is_flashing && !root.is_hashing;
-                        clicked => { root.select_iso(); }
-                    }
-                }
-
-                if root.iso_size_label != "": Text {
-                    text: root.iso_size_label;
-                    font-size: 12px;
-                    opacity: 0.8;
-                }
-
-                if root.detected_iso_summary != "": Rectangle {
-                    background: Palette.alternate-background;
-                    border-width: 1px;
-                    border-color: Palette.border;
-                    border-radius: 6px;
-
-                    HorizontalBox {
-                        padding: 8px;
                         Text {
-                            text: "🔎 " + root.detected_iso_summary;
-                            font-size: 12px;
-                            wrap: word-wrap;
+                            text: "Source Image (.iso, .img, .gz, .xz, .zst)";
+                            color: M3Theme.on-surface-variant;
+                            font-size: M3Theme.label-lg;
+                            font-weight: 700;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            LineEdit {
+                                text: root.has_valid_iso ? root.selected_iso : "No image selected";
+                                read-only: true;
+                                horizontal-stretch: 1;
+                            }
+
+                            M3CompactButton {
+                                text: "Select";
+                                enabled: !root.is_flashing && !root.is_hashing;
+                                clicked => { root.select_iso(); }
+                            }
+                        }
+
+                        if root.iso_size_label != "": Text {
+                            text: root.iso_size_label;
+                            color: M3Theme.on-surface-variant;
+                            font-size: M3Theme.body-sm;
+                        }
+
+                        // Semantic ISO introspection banner (`tertiary-container`)
+                        if root.detected_iso_summary != "": Rectangle {
+                            border-radius: M3Theme.shape-md;
+                            background: M3Theme.tertiary-container;
+
+                            HorizontalBox {
+                                padding: 10px;
+                                Text {
+                                    text: "Detected: " + root.detected_iso_summary;
+                                    color: M3Theme.on-tertiary-container;
+                                    font-size: M3Theme.body-sm;
+                                    font-weight: 600;
+                                    wrap: word-wrap;
+                                }
+                            }
                         }
                     }
+
+                    // Primary Expressive CTA (isolated at bottom of setup pane)
+                    if !root.is_flashing && !root.show_progress: M3ExpressiveButton {
+                        text: root.boot_selection == "Non-bootable (Format only)"
+                            ? "Format USB Drive"
+                            : (root.selected_device_count > 1
+                                ? "Start Flash (" + root.selected_device_count + " Drives)"
+                                : "Start Flash");
+                        enabled: root.has_devices
+                            && root.selected_device_count > 0
+                            && !root.is_hashing
+                            && (root.boot_selection == "Non-bootable (Format only)" || root.has_valid_iso);
+                        clicked => { root.request_action(); }
+                    }
+
+                    if root.is_flashing: M3ExpressiveButton {
+                        text: "Cancel Operation";
+                        destructive: true;
+                        clicked => { root.cancel_action(); }
+                    }
+
+                    if !root.is_flashing && root.show_progress: M3ExpressiveButton {
+                        text: root.has_error ? "Try Again" : "Flash Another Drive";
+                        tonal: true;
+                        clicked => { root.reset_progress(); }
+                    }
                 }
             }
 
-            // Action Button / Cancel / Reset
-            if !root.is_flashing && !root.show_progress: Button {
-                text: root.boot_selection == "Non-bootable (Format only)"
-                    ? "FORMAT USB"
-                    : (root.selected_device_count > 1 ? "START (" + root.selected_device_count + " DEVICES)" : "START");
-                primary: true;
-                height: 44px;
-                enabled: root.has_devices
-                    && root.selected_device_count > 0
-                    && !root.is_hashing
-                    && (root.boot_selection == "Non-bootable (Format only)" || root.has_valid_iso);
-                clicked => { root.request_action(); }
-            }
-
-            if root.is_flashing: Button {
-                text: "CANCEL";
-                height: 44px;
-                clicked => { root.cancel_action(); }
-            }
-
-            if !root.is_flashing && root.show_progress: Button {
-                text: "Ready / Start Another";
-                primary: true;
-                height: 44px;
-                clicked => { root.reset_progress(); }
-            }
-        }
-
-        // Vertical Separator
-        Rectangle {
-            width: 1px;
-            background: Palette.border;
-        }
-
-        // Right Column: Rufus Options, Checksum, Activity Log, Progress
-        VerticalBox {
-            horizontal-stretch: 1.25;
-            min-width: 360px;
-            spacing: 10px;
-
-            Text {
-                text: "Drive & Write Options";
-                font-weight: 600;
-            }
-
-            // Write mode selector (when flashing an image)
-            if root.boot_selection == "Disk or ISO image": HorizontalBox {
-                padding: 0px;
-                spacing: 8px;
+            // RIGHT PANE: Calm Supporting Configuration, Checksum & Activity Pane (`surface`)
+            VerticalBox {
+                horizontal-stretch: 1.15;
+                min-width: 360px;
+                padding: 4px;
+                spacing: 12px;
 
                 Text {
-                    text: "Write Mode:";
-                    vertical-alignment: center;
-                    width: 115px;
+                    text: "Write & Drive Configuration";
+                    color: M3Theme.on-surface;
+                    font-size: M3Theme.title-md;
+                    font-weight: 700;
                 }
 
-                ComboBox {
-                    model: ["Auto", "DD (Raw)", "ISO (Windows / Extract)"];
-                    current-value <=> root.write_mode;
-                    enabled: !root.is_flashing;
-                    horizontal-stretch: 1;
-                }
-            }
-
-            // Partition Scheme + Filesystem + Volume Label (for Format mode or ISO Mode)
-            if root.boot_selection == "Non-bootable (Format only)"
-                || root.write_mode == "ISO (Windows / Extract)"
-                || (root.write_mode == "Auto" && root.is_windows_iso): VerticalBox {
-                padding: 0px;
-                spacing: 8px;
-
-                HorizontalBox {
-                    padding: 0px;
-                    spacing: 8px;
-
-                    Text {
-                        text: "Partition / FS:";
-                        vertical-alignment: center;
-                        width: 115px;
-                    }
-
-                    ComboBox {
-                        model: ["GPT", "MBR"];
-                        current-value <=> root.partition_scheme;
-                        enabled: !root.is_flashing;
-                        width: 90px;
-                    }
-
-                    ComboBox {
-                        model: ["NTFS", "FAT32", "exFAT", "ext4"];
-                        current-value <=> root.file_system;
-                        enabled: !root.is_flashing;
-                        horizontal-stretch: 1;
-                    }
-                }
-
-                HorizontalBox {
-                    padding: 0px;
-                    spacing: 8px;
-
-                    Text {
-                        text: "Volume Label:";
-                        vertical-alignment: center;
-                        width: 115px;
-                    }
-
-                    LineEdit {
-                        text <=> root.volume_label;
-                        enabled: !root.is_flashing;
-                        horizontal-stretch: 1;
-                    }
-                }
-            }
-
-            // Windows 11 Customization (Rufus-style)
-            if root.boot_selection == "Disk or ISO image"
-                && (root.is_windows_iso || root.write_mode == "ISO (Windows / Extract)"): VerticalBox {
-                padding: 0px;
-                spacing: 4px;
-
-                Text {
-                    text: "Windows Customization (autounattend.xml)";
-                    font-weight: 600;
-                    font-size: 13px;
-                }
-
-                CheckBox {
-                    text: "Bypass TPM 2.0, Secure Boot & 4GB RAM requirements";
-                    checked <=> root.win_bypass_tpm;
-                    enabled: !root.is_flashing;
-                }
-
-                CheckBox {
-                    text: "Bypass Microsoft Account (enable local account)";
-                    checked <=> root.win_bypass_msa;
-                    enabled: !root.is_flashing;
-                }
-            }
-
-            // DD Mode Options & Linux Persistence
-            if root.boot_selection == "Disk or ISO image"
-                && (root.write_mode == "DD (Raw)" || (root.write_mode == "Auto" && !root.is_windows_iso)): VerticalBox {
-                padding: 0px;
-                spacing: 4px;
-
-                CheckBox {
-                    text: "Verify data after writing (bypasses OS page cache)";
-                    checked <=> root.opt_verify;
-                    enabled: !root.is_flashing;
-                }
-
-                CheckBox {
-                    text: "Resume interrupted write (skip identical blocks)";
-                    checked <=> root.opt_resume;
-                    enabled: !root.is_flashing;
-                }
-
-                if root.is_linux_hybrid_iso: HorizontalBox {
-                    padding: 0px;
-                    spacing: 8px;
-
-                    Text {
-                        text: "Persistence (MB):";
-                        vertical-alignment: center;
-                        width: 115px;
-                    }
-
-                    LineEdit {
-                        text <=> root.persistence_mb;
-                        placeholder-text: "0 = disabled (e.g. 4096)";
-                        enabled: !root.is_flashing;
-                        horizontal-stretch: 1;
-                    }
-                }
-            }
-
-            Rectangle {
-                height: 1px;
-                background: Palette.border;
-            }
-
-            // ISO Checksum Verification
-            if root.boot_selection == "Disk or ISO image": VerticalBox {
-                padding: 0px;
-                spacing: 6px;
-
-                Text {
-                    text: "ISO Checksum (Optional)";
-                    font-weight: 600;
-                }
-
-                HorizontalBox {
-                    padding: 0px;
-                    spacing: 8px;
-
-                    ComboBox {
-                        model: ["SHA256", "MD5"];
-                        current-value <=> root.checksum_algo;
-                        enabled: !root.is_flashing && !root.is_hashing;
-                        width: 96px;
-                    }
-
-                    LineEdit {
-                        placeholder-text: "Expected hash (optional)";
-                        text <=> root.expected_checksum;
-                        enabled: !root.is_flashing && !root.is_hashing;
-                        horizontal-stretch: 1;
-                    }
-
-                    Button {
-                        text: root.is_hashing ? "..." : "Verify";
-                        enabled: root.has_valid_iso && !root.is_flashing && !root.is_hashing;
-                        clicked => { root.calculate_checksum(root.checksum_algo, root.expected_checksum); }
-                    }
-                }
-
-                if root.checksum_result != "": Text {
-                    text: root.checksum_result;
-                    font-size: 12px;
-                    wrap: word-wrap;
-                }
-            }
-
-            Text {
-                text: "Activity Log";
-                font-weight: 600;
-            }
-
-            TextEdit {
-                text: root.terminal_logs;
-                read-only: true;
-                vertical-stretch: 1;
-            }
-
-            // Progress Panel
-            if root.show_progress: Rectangle {
-                background: Palette.alternate-background;
-                border-width: 1px;
-                border-color: Palette.border;
-                border-radius: 10px;
-                height: 66px;
-
-                VerticalBox {
-                    padding: 10px;
+                // Write Mode (M3 Segmented 3-way)
+                if root.boot_selection == "Disk or ISO image": VerticalLayout {
                     spacing: 6px;
 
                     Text {
-                        text: root.status_text;
-                        font-size: 13px;
+                        text: "Write Mode";
+                        color: M3Theme.on-surface-variant;
+                        font-size: M3Theme.label-md;
                         font-weight: 600;
-                        horizontal-alignment: center;
                     }
 
-                    ProgressIndicator {
-                        progress: root.progress_value;
-                        height: 10px;
+                    M3Segmented3 {
+                        option-a: "Auto";
+                        value-a: "Auto";
+                        option-b: "DD (Raw)";
+                        value-b: "DD (Raw)";
+                        option-c: "ISO / Win";
+                        value-c: "ISO (Windows / Extract)";
+                        current-value <=> root.write_mode;
+                        enabled: !root.is_flashing;
                     }
+                }
+
+                // Partition Scheme + Filesystem + Volume Label (Format or ISO Mode)
+                if root.boot_selection == "Non-bootable (Format only)"
+                    || root.write_mode == "ISO (Windows / Extract)"
+                    || (root.write_mode == "Auto" && root.is_windows_iso): VerticalLayout {
+                    spacing: 10px;
+
+                    HorizontalLayout {
+                        spacing: 10px;
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            width: 150px;
+                            Text {
+                                text: "Partition Scheme";
+                                color: M3Theme.on-surface-variant;
+                                font-size: M3Theme.label-md;
+                                font-weight: 600;
+                            }
+                            M3Segmented2 {
+                                option-a: "GPT";
+                                value-a: "GPT";
+                                option-b: "MBR";
+                                value-b: "MBR";
+                                current-value <=> root.partition_scheme;
+                                enabled: !root.is_flashing;
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: "File System";
+                                color: M3Theme.on-surface-variant;
+                                font-size: M3Theme.label-md;
+                                font-weight: 600;
+                            }
+                            ComboBox {
+                                model: ["NTFS", "FAT32", "exFAT", "ext4"];
+                                current-value <=> root.file_system;
+                                enabled: !root.is_flashing;
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Text {
+                            text: "Volume Label";
+                            color: M3Theme.on-surface-variant;
+                            font-size: M3Theme.label-md;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                            width: 100px;
+                        }
+                        LineEdit {
+                            text <=> root.volume_label;
+                            enabled: !root.is_flashing;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
+
+                // Windows 11 Customization (progressive disclosure — only when relevant)
+                if root.boot_selection == "Disk or ISO image"
+                    && (root.is_windows_iso || root.write_mode == "ISO (Windows / Extract)"): Rectangle {
+                    border-radius: M3Theme.shape-lg;
+                    background: M3Theme.surface-container;
+
+                    VerticalBox {
+                        padding: 12px;
+                        spacing: 6px;
+
+                        Text {
+                            text: "Windows Customization (autounattend.xml)";
+                            color: M3Theme.on-surface;
+                            font-size: M3Theme.label-lg;
+                            font-weight: 700;
+                        }
+
+                        CheckBox {
+                            text: "Bypass TPM 2.0, Secure Boot & 4GB RAM";
+                            checked <=> root.win_bypass_tpm;
+                            enabled: !root.is_flashing;
+                        }
+
+                        CheckBox {
+                            text: "Bypass Microsoft Account (local account)";
+                            checked <=> root.win_bypass_msa;
+                            enabled: !root.is_flashing;
+                        }
+                    }
+                }
+
+                // DD Mode Options & Linux Live Persistence
+                if root.boot_selection == "Disk or ISO image"
+                    && (root.write_mode == "DD (Raw)" || (root.write_mode == "Auto" && !root.is_windows_iso)): VerticalLayout {
+                    spacing: 6px;
+
+                    CheckBox {
+                        text: "Verify written data (reads back from physical USB)";
+                        checked <=> root.opt_verify;
+                        enabled: !root.is_flashing;
+                    }
+
+                    CheckBox {
+                        text: "Resume interrupted write (skip identical blocks)";
+                        checked <=> root.opt_resume;
+                        enabled: !root.is_flashing;
+                    }
+
+                    if root.is_linux_hybrid_iso: HorizontalLayout {
+                        spacing: 10px;
+
+                        Text {
+                            text: "Persistence (MB)";
+                            color: M3Theme.on-surface-variant;
+                            font-size: M3Theme.label-md;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                            width: 112px;
+                        }
+
+                        LineEdit {
+                            text <=> root.persistence_mb;
+                            placeholder-text: "0 = disabled (e.g. 4096)";
+                            enabled: !root.is_flashing;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
+
+                // Subtle M3 outline-variant divider
+                Rectangle {
+                    height: 1px;
+                    background: M3Theme.outline-variant;
+                }
+
+                // ISO Checksum Verification (calm utility row)
+                if root.boot_selection == "Disk or ISO image": VerticalLayout {
+                    spacing: 6px;
+
+                    Text {
+                        text: "Checksum Verification";
+                        color: M3Theme.on-surface-variant;
+                        font-size: M3Theme.label-md;
+                        font-weight: 600;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        ComboBox {
+                            model: ["SHA256", "MD5"];
+                            current-value <=> root.checksum_algo;
+                            enabled: !root.is_flashing && !root.is_hashing;
+                            width: 96px;
+                        }
+
+                        LineEdit {
+                            placeholder-text: "Expected hash (optional)";
+                            text <=> root.expected_checksum;
+                            enabled: !root.is_flashing && !root.is_hashing;
+                            horizontal-stretch: 1;
+                        }
+
+                        M3CompactButton {
+                            text: root.is_hashing ? "..." : "Verify";
+                            outlined: true;
+                            enabled: root.has_valid_iso && !root.is_flashing && !root.is_hashing;
+                            clicked => { root.calculate_checksum(root.checksum_algo, root.expected_checksum); }
+                        }
+                    }
+
+                    if root.checksum_result != "": Text {
+                        text: root.checksum_result;
+                        color: M3Theme.on-surface;
+                        font-size: M3Theme.body-sm;
+                        wrap: word-wrap;
+                    }
+                }
+
+                // Activity Log
+                Text {
+                    text: "Activity Log";
+                    color: M3Theme.on-surface-variant;
+                    font-size: M3Theme.label-md;
+                    font-weight: 600;
+                }
+
+                TextEdit {
+                    text: root.terminal_logs;
+                    read-only: true;
+                    vertical-stretch: 1;
+                }
+
+                // Expressive Progress Card (only visible when active or completed/error)
+                if root.show_progress: M3ProgressCard {
+                    status-text: root.status_text;
+                    progress: root.progress_value;
+                    has-error: root.has_error;
+                    is-success: root.is_success;
                 }
             }
         }
     }
 
-    // Safety Confirmation Modal Overlay
+    // M3 Confirmation Dialog (`surface-container-high`, `shape-xxl: 28px`, explicit destructive CTA)
     if root.show_confirm_dialog: Rectangle {
         width: 100%;
         height: 100%;
-        background: #00000099;
+        background: M3Theme.scrim;
 
-        TouchArea {}
+        TouchArea {} // Blocks background interaction
 
         Rectangle {
             width: min(500px, parent.width - 48px);
-            height: 280px;
+            height: 290px;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
-            background: Palette.background;
-            border-width: 1px;
-            border-color: Palette.border;
-            border-radius: 12px;
+            border-radius: M3Theme.shape-xxl;
+            background: M3Theme.surface-container-high;
 
             VerticalBox {
-                padding: 20px;
-                spacing: 14px;
+                padding: 24px;
+                spacing: 16px;
 
-                Text {
-                    text: "⚠️ Confirm Data Erasure";
-                    font-size: 18px;
-                    font-weight: 700;
+                HorizontalLayout {
+                    spacing: 12px;
+
+                    Rectangle {
+                        width: 40px;
+                        height: 40px;
+                        border-radius: M3Theme.shape-full;
+                        background: M3Theme.error-container;
+
+                        Text {
+                            text: "!";
+                            color: M3Theme.on-error-container;
+                            font-size: 20px;
+                            font-weight: 800;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        Text {
+                            text: "Confirm Permanent Erasure";
+                            color: M3Theme.on-surface;
+                            font-size: M3Theme.title-lg;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: "This action cannot be undone.";
+                            color: M3Theme.on-surface-variant;
+                            font-size: M3Theme.body-sm;
+                        }
+                    }
                 }
 
                 Text {
                     text: root.confirm_summary;
+                    color: M3Theme.on-surface;
+                    font-size: M3Theme.body-md;
                     wrap: word-wrap;
                     vertical-stretch: 1;
                 }
 
                 HorizontalBox {
                     padding: 0px;
-                    spacing: 12px;
+                    spacing: 10px;
                     alignment: end;
 
-                    Button {
+                    M3CompactButton {
                         text: "Cancel";
+                        outlined: true;
                         clicked => { root.show_confirm_dialog = false; }
                     }
 
-                    Button {
-                        text: "OK — Erase & Proceed";
-                        primary: true;
+                    M3CompactButton {
+                        text: "Erase & Proceed";
+                        destructive: true;
                         clicked => {
                             root.show_confirm_dialog = false;
                             root.confirm_action();

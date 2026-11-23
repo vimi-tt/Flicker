@@ -1,0 +1,77 @@
+import { Palette } from "std-widgets.slint";
+
+/// Material Design 3 Expressive semantic design tokens for Flicker.
+///
+/// Brand seed: Flame Ember (warm terracotta/amber aligned with Flicker's identity).
+/// All `on-*` pairs are tuned for WCAG AA (>= 4.5:1) contrast in both Light and Dark schemes.
+export global M3Theme {
+    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+
+    // --- Primary (Brand / Highest-Emphasis Action) ---
+    out property <color> primary: dark ? #FFB59E : #A83814;
+    out property <color> on-primary: dark ? #5D1903 : #FFFFFF;
+    out property <color> primary-container: dark ? #822608 : #FFDBD0;
+    out property <color> on-primary-container: dark ? #FFDBD0 : #3A0B00;
+
+    // --- Secondary (Selected Controls / Supporting Emphasis) ---
+    out property <color> secondary: dark ? #E7BDB0 : #77574D;
+    out property <color> on-secondary: dark ? #442A22 : #FFFFFF;
+    out property <color> secondary-container: dark ? #5D3F36 : #FFDBD0;
+    out property <color> on-secondary-container: dark ? #FFDBD0 : #2C150E;
+
+    // --- Tertiary (Detection / Positive / Status Accents) ---
+    out property <color> tertiary: dark ? #9DD49E : #2F6A36;
+    out property <color> on-tertiary: dark ? #063911 : #FFFFFF;
+    out property <color> tertiary-container: dark ? #175121 : #B8F1B9;
+    out property <color> on-tertiary-container: dark ? #B8F1B9 : #002107;
+
+    // --- Surfaces (Tonal Hierarchy — replaces arbitrary gray cards) ---
+    out property <color> surface: dark ? #181210 : #FFF8F6;
+    out property <color> surface-container-lowest: dark ? #130D0B : #FFFFFF;
+    out property <color> surface-container-low: dark ? #211A18 : #FFF0EC;
+    out property <color> surface-container: dark ? #251E1C : #FCEAE4;
+    out property <color> surface-container-high: dark ? #302826 : #F6E4DE;
+    out property <color> surface-container-highest: dark ? #3B3330 : #F0DED8;
+
+    out property <color> on-surface: dark ? #F0DFDA : #231917;
+    out property <color> on-surface-variant: dark ? #D8C2BC : #53433F;
+
+    out property <color> outline: dark ? #A08D87 : #85736E;
+    out property <color> outline-variant: dark ? #53433F : #D8C2BC;
+
+    // --- Error / Destructive ---
+    out property <color> error: dark ? #FFB4AB : #BA1A1A;
+    out property <color> on-error: dark ? #690005 : #FFFFFF;
+    out property <color> error-container: dark ? #93000A : #FFDAD6;
+    out property <color> on-error-container: dark ? #FFDAD6 : #410002;
+
+    // --- Overlay / State Layers ---
+    out property <color> scrim: #00000088;
+    out property <color> hover-tint: dark ? #FFFFFF14 : #0000000E;
+    out property <color> press-tint: dark ? #FFFFFF22 : #00000018;
+
+    // --- M3 Expressive Shape Scale ---
+    out property <length> shape-xs: 4px;
+    out property <length> shape-sm: 8px;
+    out property <length> shape-md: 12px;
+    out property <length> shape-lg: 16px;
+    out property <length> shape-xl: 24px;
+    out property <length> shape-xxl: 28px;
+    out property <length> shape-full: 999px;
+
+    // --- M3 Expressive Typography Scale ---
+    out property <length> headline-sm: 24px;
+    out property <length> title-lg: 18px;
+    out property <length> title-md: 15px;
+    out property <length> title-sm: 13px;
+    out property <length> body-md: 13px;
+    out property <length> body-sm: 12px;
+    out property <length> label-lg: 13px;
+    out property <length> label-md: 12px;
+    out property <length> label-sm: 11px;
+
+    // --- M3 Motion Durations ---
+    out property <duration> motion-fast: 140ms;
+    out property <duration> motion-standard: 240ms;
+    out property <duration> motion-emphasized: 380ms;
+}

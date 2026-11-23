@@ -356,6 +356,8 @@ pub fn run_gui() -> Result<()> {
 
             if let Err(e) = crate::utils::validate_iso_file(&iso_path) {
                 app.set_show_progress(true);
+                app.set_has_error(true);
+                app.set_is_success(false);
                 app.set_status_text(format!("❌ {}", e).into());
                 return;
             }
@@ -364,6 +366,8 @@ pub fn run_gui() -> Result<()> {
                 Ok(m) => m.len(),
                 Err(e) => {
                     app.set_show_progress(true);
+                    app.set_has_error(true);
+                    app.set_is_success(false);
                     app.set_status_text(format!("❌ Failed to read image metadata: {}", e).into());
                     return;
                 }
@@ -372,6 +376,8 @@ pub fn run_gui() -> Result<()> {
             for dev in &targets {
                 if iso_size > dev.size {
                     app.set_show_progress(true);
+                    app.set_has_error(true);
+                    app.set_is_success(false);
                     app.set_status_text(
                         format!(
                             "❌ Image ({}) exceeds /dev/{} ({})",
@@ -427,6 +433,8 @@ pub fn run_gui() -> Result<()> {
 
             app.set_is_flashing(true);
             app.set_show_progress(true);
+            app.set_has_error(false);
+            app.set_is_success(false);
             app.set_status_text(
                 if cfg.is_format_only {
                     "Starting format..."
@@ -481,6 +489,8 @@ pub fn run_gui() -> Result<()> {
                         app.set_is_flashing(false);
                         match res {
                             Ok(()) => {
+                                app.set_has_error(false);
+                                app.set_is_success(true);
                                 app.set_progress_value(1.0);
                                 app.set_status_text(
                                     if cfg.is_format_only {
@@ -492,6 +502,8 @@ pub fn run_gui() -> Result<()> {
                                 );
                             }
                             Err(e) => {
+                                app.set_has_error(true);
+                                app.set_is_success(false);
                                 app.set_status_text(format!("❌ {}", e).into());
                                 if let Ok(mut st) = state_ui.lock() {
                                     let logs = st.push_log(format!("ERROR: {}", e));
@@ -533,6 +545,8 @@ pub fn run_gui() -> Result<()> {
         app.on_reset_progress(move || {
             if let Some(app) = app_weak.upgrade() {
                 app.set_show_progress(false);
+                app.set_has_error(false);
+                app.set_is_success(false);
                 app.set_progress_value(0.0);
                 app.set_status_text("Ready".into());
                 refresh_device_list(&app, &state);
