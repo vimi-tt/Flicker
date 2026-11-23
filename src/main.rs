@@ -1,3 +1,4 @@
+mod checksum;
 mod cli;
 mod usb;
 mod utils;
@@ -53,7 +54,7 @@ fn main() -> Result<()> {
                     println!("  Expected:  {}", hash);
                 }
                 
-                verify_iso(&iso, checksum.as_deref(), &algorithm)?;
+                checksum::verify_iso_cli(&iso, checksum.as_deref(), &algorithm)?;
             }
         }
     } else {
@@ -202,7 +203,7 @@ fn run_gui() -> Result<()> {
         std::thread::spawn(move || {
             let _ = crate::utils::unmount_device(&device_name);
 
-            let res = crate::writer::write_iso_to_devices(&iso_path, &[device_path], verify, resume, Some(tx));
+            let res = crate::writer::write_iso_to_devices(&iso_path, &[device_path], verify, resume, Some(tx), None);
             
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(app) = app_bg.upgrade() {
@@ -387,8 +388,9 @@ fn write_iso(
     println!("{}", "=".repeat(60));
     
     let start_time = std::time::Instant::now();
-    
-    writer::write_iso_to_devices(iso, devices, verify, resume, None)?;
+    writer::install_ctrlc_handler();
+
+    writer::write_iso_to_devices(iso, devices, verify, resume, None, None)?;
     
     let elapsed = start_time.elapsed();
     let speed = writer::calculate_speed(iso_size * devices.len() as u64, elapsed.as_secs_f64());
@@ -400,85 +402,6 @@ fn write_iso(
     println!("   Overall speed: {}", speed);
     println!("   Devices written: {}", devices.len());
     println!("{}", "=".repeat(60));
-    
-    Ok(())
-}
-
-fn verify_iso(iso: &std::path::Path, expected: Option<&str>, algorithm: &str) -> Result<()> {
-    use std::fs::File;
-    use std::io::Read;
-    use sha2::{Sha256, Digest};
-    use md5::Md5;
-    use indicatif::{ProgressBar, ProgressStyle};
-
-    if !iso.exists() {
-        anyhow::bail!("❌ ISO file not found: {:?}", iso);
-    }
-
-    println!("\n🔐 Calculating {} checksum...", algorithm.to_uppercase());
-    
-    let mut file = File::open(iso)?;
-    let iso_size = file.metadata()?.len();
-    
-    let progress = ProgressBar::new(iso_size);
-    progress.set_style(
-        ProgressStyle::default_bar()
-            .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})")
-            .expect("Failed to create progress bar template")
-            .progress_chars("#>-")
-    );
-    progress.set_message(format!("Calculating {}...", algorithm.to_uppercase()));
-
-    let mut buffer = vec![0u8; 4 * 1024 * 1024]; // 4MB buffer
-    let mut total_read = 0u64;
-
-    let calculated = match algorithm.to_lowercase().as_str() {
-        "sha256" => {
-            let mut hasher = Sha256::new();
-            loop {
-                let bytes_read = file.read(&mut buffer)?;
-                if bytes_read == 0 {
-                    break;
-                }
-                hasher.update(&buffer[..bytes_read]);
-                total_read += bytes_read as u64;
-                progress.set_position(total_read);
-            }
-            hex::encode(hasher.finalize())
-        },
-        "md5" => {
-            let mut hasher = Md5::new();
-            loop {
-                let bytes_read = file.read(&mut buffer)?;
-                if bytes_read == 0 {
-                    break;
-                }
-                hasher.update(&buffer[..bytes_read]);
-                total_read += bytes_read as u64;
-                progress.set_position(total_read);
-            }
-            hex::encode(hasher.finalize())
-        },
-        _ => {
-            progress.finish_and_clear();
-            anyhow::bail!("❌ Unsupported algorithm: {}. Please use 'sha256' or 'md5'.", algorithm);
-        },
-    };
-
-    progress.finish_with_message("✓ Checksum calculated");
-
-    if let Some(hash) = expected {
-        println!("\n   Expected:   {}", hash);
-        println!("   Calculated: {}", calculated);
-        if hash.eq_ignore_ascii_case(&calculated) {
-            println!("   Status:     ✅ MATCH");
-        } else {
-            println!("   Status:     ❌ MISMATCH");
-            anyhow::bail!("Checksum verification failed!");
-        }
-    } else {
-        println!("\n   Calculated checksum: {}", calculated);
-    }
     
     Ok(())
 }
